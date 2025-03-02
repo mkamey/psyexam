@@ -8,7 +8,19 @@ declare module "@remix-run/node" {
   }
 }
 
+// デバッグ情報を出力
+console.log("Vite設定を読み込み中...");
+console.log("Node.js バージョン:", process.version);
+console.log("環境変数:", {
+  NODE_ENV: process.env.NODE_ENV,
+  DATABASE_URL: process.env.DATABASE_URL ? "設定済み" : "未設定"
+});
+
 export default defineConfig({
+  // 詳細なログ出力を有効化
+  logLevel: "info",
+  
+  // プラグイン設定
   plugins: [
     remix({
       future: {
@@ -24,21 +36,49 @@ export default defineConfig({
     }),
     tsconfigPaths(),
   ],
+  
+  // 依存関係の最適化
+  optimizeDeps: {
+    include: ["react", "react-dom", "@remix-run/react"],
+    exclude: [],
+  },
+  
   // ビルド設定の最適化
   build: {
+    sourcemap: true,
     rollupOptions: {
       onwarn(warning, warn) {
         // 特定の警告を無視
         if (warning.code === 'MODULE_LEVEL_DIRECTIVE' && warning.message.includes('use client')) {
           return;
         }
+        // "remix:manifest"の警告を無視
+        if (warning.code === 'UNRESOLVED_IMPORT' && warning.message.includes('remix:manifest')) {
+          return;
+        }
         warn(warning);
       },
     },
   },
+  
   // 開発サーバーの設定
   server: {
     host: true,
     port: 3000,
+    hmr: {
+      protocol: 'ws',
+      host: 'localhost',
+    },
+  },
+  
+  // 解決設定
+  resolve: {
+    alias: {
+      // "remix:manifest"の解決問題を回避するためのダミーエイリアス
+      "remix:manifest": "/virtual-manifest.json",
+    },
   },
 });
+
+// 設定読み込み完了のログ
+console.log("Vite設定の読み込みが完了しました");

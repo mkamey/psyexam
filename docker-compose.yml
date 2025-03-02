@@ -10,6 +10,8 @@ services:
       - ./docker/remix/exams:/usr/server/exams
       - ./docker/remix/prisma:/usr/server/prisma
       - ./docker/remix/utils:/usr/server/utils
+      - ./docker/remix/create-admin.sql:/usr/server/create-admin.sql
+      - ./docker/remix/fix-users.sql:/usr/server/fix-users.sql
     stdin_open: true
     tty: true
     depends_on:

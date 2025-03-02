@@ -1,6 +1,6 @@
 FROM node:current-slim
 WORKDIR /usr/server
-RUN apt-get update -y && apt-get install -y openssl netcat-traditional
+RUN apt-get update -y && apt-get install -y openssl netcat-traditional default-mysql-client
 COPY ./package.json ./
 RUN npm install
 COPY . .
