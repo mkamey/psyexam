@@ -2,7 +2,7 @@ USE psyexam;
 
 CREATE TABLE patients
 (
-  id INT PRIMARY KEY,
+  id INT PRIMARY KEY AUTO_INCREMENT,
   sex INT,
   birthdate DATE,
   initial CHAR(8),
@@ -12,16 +12,17 @@ CREATE TABLE patients
 
 CREATE TABLE exams
 (
-  id INT PRIMARY KEY,
+  id INT PRIMARY KEY AUTO_INCREMENT,
   examname VARCHAR(255),
   cutoff INT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_examname (examname)
 );
 
 CREATE TABLE stacked_exams
 (
-  id INT PRIMARY KEY,
+  id INT PRIMARY KEY AUTO_INCREMENT,
   patient_id INT,
   exam_id INT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -32,7 +33,7 @@ CREATE TABLE stacked_exams
 
 CREATE TABLE results
 (
-  id INT PRIMARY KEY,
+  id INT PRIMARY KEY AUTO_INCREMENT,
   patient_id INT,
   exam_id INT,
   item0 INT,
@@ -56,4 +57,22 @@ CREATE TABLE results
   FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE
 );
 
+CREATE TABLE users
+(
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  username VARCHAR(255) NOT NULL UNIQUE,
+  email VARCHAR(255) NOT NULL UNIQUE,
+  password VARCHAR(255) NOT NULL,
+  full_name VARCHAR(255) NOT NULL,
+  role VARCHAR(50) NOT NULL DEFAULT 'doctor',
+  is_approved BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- 初期データ
 INSERT INTO patients (id, sex, birthdate, initial) VALUES (1234567, 1, '1989-11-07', 'DS');
+
+-- 初期管理者ユーザー (パスワード: admin123)
+INSERT INTO users (username, email, full_name, password, role, is_approved) 
+VALUES ('admin', 'admin@example.com', '管理者', '$2a$10$K0hyQ9BkYVhVcD0iO5XrGOQ1PfC3hD6QJm1uSvl6NbOQb.0za8Ttu', 'admin', true);

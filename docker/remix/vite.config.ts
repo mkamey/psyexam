@@ -18,7 +18,27 @@ export default defineConfig({
         v3_singleFetch: true,
         v3_lazyRouteDiscovery: true,
       },
+      // マニフェスト解決の問題を修正するための設定
+      manifest: true,
+      serverModuleFormat: "esm",
     }),
     tsconfigPaths(),
   ],
+  // ビルド設定の最適化
+  build: {
+    rollupOptions: {
+      onwarn(warning, warn) {
+        // 特定の警告を無視
+        if (warning.code === 'MODULE_LEVEL_DIRECTIVE' && warning.message.includes('use client')) {
+          return;
+        }
+        warn(warning);
+      },
+    },
+  },
+  // 開発サーバーの設定
+  server: {
+    host: true,
+    port: 3000,
+  },
 });

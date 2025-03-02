@@ -1,11 +1,19 @@
-import { json, redirect } from "@remix-run/node";
+import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData, useFetcher } from "@remix-run/react";
-import { prisma } from "utils/db.server";
+import { prisma } from "../../utils/db.server";
+import { requireApprovedUser } from "../../utils/session.server";
 import { useState } from "react";
 
 // Loader: データ取得
-export const loader = async ({ params }) => {
+export const loader = async ({ params, request }: LoaderFunctionArgs) => {
+  // 承認済みユーザーのみアクセス可能
+  await requireApprovedUser(request);
+  
   const patientId = Number(params.patientId);
+  
+  if (isNaN(patientId)) {
+    throw new Response("Invalid patient ID", { status: 400 });
+  }
 
   const results = await prisma.result.findMany({
     where: { patientId },
@@ -26,7 +34,10 @@ export const loader = async ({ params }) => {
 };
 
 // Action: 削除・追加処理
-export const action = async ({ request }) => {
+export const action = async ({ request }: ActionFunctionArgs) => {
+  // 承認済みユーザーのみアクセス可能
+  await requireApprovedUser(request);
+  
   const formData = await request.formData();
   const patientId = Number(formData.get("patientId"));
   const examId = Number(formData.get("examId"));
@@ -55,30 +66,58 @@ export const action = async ({ request }) => {
   return redirect(`/doctor/${patientId}`);
 };
 
+type Exam = {
+  id: number;
+  examname: string;
+  cutoff: number;
+};
+
+type StackedExam = {
+  id: number;
+  patientId: number;
+  examId: number;
+  exam: Exam;
+};
+
+type Result = {
+  id: number;
+  patientId: number;
+  examId: number;
+  exam: Exam;
+  created_at: string;
+  [key: string]: any; // item0, item1, ... などの動的なプロパティ
+};
+
 export default function DoctorPatientPage() {
-  const { results, patientId, stackedExams, availableExams } = useLoaderData();
+  const { results, patientId, stackedExams, availableExams } = useLoaderData<typeof loader>();
   const fetcher = useFetcher();
-  const [localStackedExams, setLocalStackedExams] = useState(stackedExams);
-  const [localAvailableExams, setLocalAvailableExams] = useState(availableExams);
+  const [localStackedExams, setLocalStackedExams] = useState<StackedExam[]>(stackedExams);
+  const [localAvailableExams, setLocalAvailableExams] = useState<Exam[]>(availableExams);
 
   // 検査削除処理
-  const deleteStackedExam = (examId) => {
+  const deleteStackedExam = (examId: number) => {
     fetcher.submit(
-      { patientId, examId, actionType: "delete" },
+      { patientId: patientId.toString(), examId: examId.toString(), actionType: "delete" },
       { method: "POST" }
     );
     setLocalStackedExams((prev) => prev.filter((exam) => exam.examId !== examId));
-    setLocalAvailableExams((prev) => [...prev, stackedExams.find((se) => se.examId === examId).exam]);
+    const examToAdd = stackedExams.find((se) => se.examId === examId)?.exam;
+    if (examToAdd) {
+      setLocalAvailableExams((prev) => [...prev, examToAdd]);
+    }
   };
 
   // 検査追加処理
-  const addStackedExam = (examId) => {
+  const addStackedExam = (examId: number) => {
     fetcher.submit(
-      { patientId, examId, actionType: "add" },
+      { patientId: patientId.toString(), examId: examId.toString(), actionType: "add" },
       { method: "POST" }
     );
-    setLocalStackedExams((prev) => [...prev, { examId, exam: localAvailableExams.find((e) => e.id === examId) }]);
-    setLocalAvailableExams((prev) => prev.filter((exam) => exam.id !== examId));
+    const examToAdd = localAvailableExams.find((e) => e.id === examId);
+    if (examToAdd) {
+      setLocalStackedExams((prev) => [...prev, { id: 0, patientId, examId, exam: examToAdd }]);
+      setLocalAvailableExams((prev) => prev.filter((exam) => exam.id !== examId));
+    }
   };
 
   return (
@@ -102,7 +141,7 @@ export default function DoctorPatientPage() {
                     result[`item${i}`] !== null ? result[`item${i}`] : "N/A"
                   ).join(", ")}
                 </td>
-                <td className="p-2">{new Date(result.created_at).toLocaleDateString()}</td>
+                <td className="p-2">{new Date(result.createdAt).toLocaleDateString()}</td>
               </tr>
             ))}
           </tbody>
@@ -112,7 +151,7 @@ export default function DoctorPatientPage() {
       )}
 
       {/* 予定されている検査一覧 */}
-      <section className="mb-8">
+      <section className="mb-8 mt-8">
         <h2 className="text-xl font-semibold mb-2">予定されている検査</h2>
         {localStackedExams.length > 0 ? (
           <table className="w-full bg-white shadow-md rounded-lg overflow-hidden">
@@ -129,7 +168,7 @@ export default function DoctorPatientPage() {
                   <td className="p-2">
                     <button
                       onClick={() => deleteStackedExam(exam.examId)}
-                      className="bg-red-500 text-white px-4 py-2 rounded"
+                      className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded"
                     >
                       削除
                     </button>
@@ -161,7 +200,7 @@ export default function DoctorPatientPage() {
                   <td className="p-2">
                     <button
                       onClick={() => addStackedExam(exam.id)}
-                      className="bg-green-500 text-white px-4 py-2 rounded"
+                      className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
                     >
                       追加
                     </button>
@@ -174,6 +213,15 @@ export default function DoctorPatientPage() {
           <p className="text-gray-500">追加できる検査はありません</p>
         )}
       </section>
+      
+      <div className="mt-8">
+        <a 
+          href="/index_doctor" 
+          className="inline-block bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+        >
+          戻る
+        </a>
+      </div>
     </div>
   );
 }

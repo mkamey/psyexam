@@ -1,6 +1,6 @@
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData, Link } from "@remix-run/react";
-import { prisma } from "utils/db.server";
+import { prisma } from "../../utils/db.server";
 import { useSearchParams } from "@remix-run/react";
 import { useEffect, useState } from "react";
 

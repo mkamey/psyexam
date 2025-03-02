@@ -1,6 +1,6 @@
 import { json, type ActionFunctionArgs, type LoaderFunctionArgs, redirect } from "@remix-run/node";
 import { Form } from "@remix-run/react";
-import { prisma } from "utils/db.server";
+import { prisma } from "../../utils/db.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const formData = await request.formData();

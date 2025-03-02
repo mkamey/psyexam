@@ -1,122 +1,135 @@
-# Webアプリ仕様書
+# 心理検査システム開発記録
 
 ## 概要
-本アプリは、患者ごとの検査を管理し、検査結果を記録・表示するシステムです。Remix、Prisma、MySQL、Dockerを使用して構築されており、医師が患者の検査を管理できる機能を備えています。
+このプロジェクトは、心理検査を管理・実施するためのウェブアプリケーションです。医師が患者の心理検査を管理し、結果を閲覧できるシステムを提供します。
 
 ## 技術スタック
-- **フロントエンド:** Remix, React, TailwindCSS
-- **バックエンド:** Remix, Prisma, Node.js
-- **データベース:** MySQL
-- **インフラ:** Docker, Docker Compose
+- フロントエンド: React, Remix, TailwindCSS
+- バックエンド: Node.js, Remix
+- データベース: MySQL
+- ORM: Prisma
+- コンテナ化: Docker, Docker Compose
 
-## 機能一覧
-### 1. 患者情報管理
-- **患者IDの入力:** `/` または `/doctor` にて患者IDを入力
-- **患者ごとの検査結果の表示:** `/patient/:id` または `/doctor/:id` で患者の検査履歴と予定されている検査を表示
+## 開発環境のセットアップ
+```bash
+# リポジトリをクローン
+git clone [リポジトリURL]
 
-### 2. 検査の管理
-- **予定されている検査の表示:** `StackedExam` テーブルを参照し、該当する患者の検査リストを表示
-- **検査の実施:** 予定されている検査に「実施する」ボタンを設置し、クリックすると `/exam/:examname?patientId=:id` に遷移
-- **検査結果の記録:** 検査の質問に回答後、結果を `Result` テーブルに保存し、`StackedExam` から該当するデータを削除
-- **検査の削除:** `/doctor/:id` で予定されている検査の「削除」ボタンを押すと `StackedExam` から該当データを削除
-- **検査の追加:** `/doctor/:id` にて、予定されていない検査を一覧表示し、クリックで `StackedExam` に追加
+# プロジェクトディレクトリに移動
+cd psyexam
 
-### 3. 検査フォーム
-- **検査項目の取得:** `/exams/:examname.json` から検査データを取得
-- **質問項目の表示:** JSONの `questions` 配列をもとに質問をリスト表示
-- **回答の選択:** 各質問に対して `options` 配列の値をボタン形式で選択
-- **検査結果の保存:** すべての質問に回答後、`Result` テーブルに保存（未設定項目は `NULL`）
-- **送信完了メッセージ:** 送信後、`/patient/:id` にリダイレクトし、数秒後に消える完了メッセージを表示
-
-## データベース構造
-
-### 1. `patients`（患者情報）
-| カラム名     | 型        | 制約                        |
-|-------------|---------|---------------------------|
-| id          | INT     | PRIMARY KEY                |
-| sex         | INT     |                             |
-| birthdate   | DATE    |                             |
-| initial     | CHAR(8) |                             |
-| created_at  | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP |
-| updated_at  | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP |
-
-### 2. `exams`（検査情報）
-| カラム名     | 型        | 制約                        |
-|-------------|---------|---------------------------|
-| id          | INT     | PRIMARY KEY                |
-| examname    | VARCHAR(255) | UNIQUE |
-| cutoff      | INT     |                             |
-| created_at  | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP |
-| updated_at  | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP |
-
-### 3. `stacked_exams`（予定されている検査）
-| カラム名     | 型        | 制約                        |
-|-------------|---------|---------------------------|
-| id          | INT     | PRIMARY KEY                |
-| patient_id  | INT     | FOREIGN KEY (patients.id) ON DELETE CASCADE |
-| exam_id     | INT     | FOREIGN KEY (exams.id) ON DELETE CASCADE |
-| created_at  | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP |
-| updated_at  | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP |
-
-### 4. `results`（検査結果）
-| カラム名     | 型        | 制約                        |
-|-------------|---------|---------------------------|
-| id          | INT     | PRIMARY KEY                |
-| patient_id  | INT     | FOREIGN KEY (patients.id) ON DELETE CASCADE |
-| exam_id     | INT     | FOREIGN KEY (exams.id) ON DELETE CASCADE |
-| item0~item9 | INT     | NULL許容                     |
-| free0~free4 | VARCHAR(2000) | NULL許容                     |
-| created_at  | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP |
-| updated_at  | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP |
-
-## 画面遷移
-1. `/` または `/index_doctor`
-   - 患者IDを入力し送信 → `/patient/:id` または `/doctor/:id` へ遷移
-   - `/index_doctor`からは`/edit_exams`,`/edit_patients`へも遷移可能
-2. `/patient/:id`
-   - 予定されている検査を表示
-   - 「実施する」ボタンで `/exam/:examId?patientId=:id` へ遷移
-3. `/exam/:examId?patientId=:id`
-   - 検査の質問を表示し、回答後送信
-   - `/patient/:id` にリダイレクトし、完了メッセージを表示
-4. `/doctor/:id`
-   - 予定されている検査を削除可能
-   - 「追加する」ボタンで新しい検査を選択可能
-5. `/edit_exams`
-   - 検査の追加、削除が可能
-   - 検査はexamsフォルダに:examname.jsonとして保存
-6. `/edit_patients`
-   - 患者の追加、削除が可能
-
-
-## API仕様
-### `GET /exams/:examname.json`
-- **説明:** 検査に必要な質問データをJSON形式で提供
-- **レスポンス:**
-```json
-{
-  "title": "PHQ-9 日本語版（JSAD 版）",
-  "instruction": "この２週間、次のような問題にどのくらい頻繁に悩まされていますか？",
-  "options": [
-    { "value": 0, "label": "全くない" },
-    { "value": 1, "label": "週に数日" },
-    { "value": 2, "label": "週の半分以上" },
-    { "value": 3, "label": "ほとんど毎日" }
-  ],
-  "questions": [
-    { "id": 1, "text": "物事に対してほとんど興味がない、または楽しめない" },
-    { "id": 2, "text": "気分が落ち込む、憂うつになる、または絶望的な気持ちになる" }
-  ]
-}
+# Dockerコンテナを起動
+docker-compose up -d
 ```
 
-## 実際の使い方
-- cloneしたうえで、docker compose up
-- localhost:3000にアクセスし、まずはlocalhost:3000/index_doctorから患者と検査を登録
-- 検査名はexamsのjsonファイルと一致するように(拡張子部分は不要)
+## 主な機能
+- ユーザー認証（ログイン/ログアウト）
+- 患者情報の管理
+- 心理検査の実施と結果の記録
+- 検査結果の閲覧と分析
 
-## 今後の改善点
-- **認証機能の追加:** 医師のログイン認証を追加
-- **CSVエクスポート:** 検査結果をCSVでダウンロード可能にする
-- **UIの改善:** 患者リストの検索・ソート機能を追加
+## 開発状況
 
+### 2025/3/2 - ログイン問題の修正（第1回）
+#### 問題点
+1. ログイン時に「ユーザーが見つかりません: admin」というエラーが発生
+2. Viteの解決エラー: "Failed to resolve "remix:manifest" from /usr/server/node_modules/.vite/deps/@remix-run_react.js"
+
+#### 原因
+1. Prismaのマイグレーション（`npx prisma db push --accept-data-loss`）によって初期データが上書きされていた可能性
+2. Remix v2.16.0とVite 6.0.0の組み合わせで発生する既知の問題
+
+#### 修正内容
+1. `docker-entrypoint.sh`を修正
+   - ユーザーテーブルの確認方法を改善
+   - ユーザーが存在しない場合に確実に管理者ユーザーを作成するよう修正
+
+2. `vite.config.ts`を修正
+   - マニフェスト解決の問題を修正するための設定を追加
+   - ビルド設定の最適化
+   - 開発サーバーの設定を追加
+
+3. `session.server.ts`にデバッグログを追加
+   - データベース接続の状態確認
+   - 全ユーザーリストの取得と確認
+
+### 2025/3/2 - ログイン問題の修正（第2回）
+#### 問題点
+デバッグログから、データベースにユーザーが全く存在していないことが判明：
+```
+[login] データベース接続成功。ユーザー総数: 0
+[login] ユーザー検索クエリ実行: username=admin
+[login] ユーザーが見つかりません: admin
+[login] 現在のユーザー一覧: []
+```
+
+#### 原因
+docker-entrypoint.shでの管理者ユーザー作成処理が正しく実行されていない。SQLコマンドでのユーザー作成が失敗している可能性がある。
+
+#### 修正内容
+1. Prismaシードスクリプト（`prisma/seed.js`）を作成
+   - Prisma APIを使用して直接ユーザーを作成するスクリプトを実装
+   - 既存のユーザーを確認し、管理者ユーザーが存在しない場合のみ作成
+
+2. package.jsonにシードコマンドを追加
+   ```json
+   "scripts": {
+     "seed": "node prisma/seed.js",
+     "db:reset": "npx prisma db push --force-reset && npm run seed"
+   }
+   ```
+
+3. docker-entrypoint.shを修正
+   - Prismaのマイグレーション後に確実にシードスクリプトを実行するよう変更
+   - シードスクリプトが失敗した場合のバックアップとして手動でのユーザー作成も試みる
+   - 詳細なデバッグ情報を出力するよう改善
+
+## 次のステップ
+1. ログイン機能の動作確認
+2. 患者情報管理機能の実装
+3. 心理検査実施機能の実装
+4. 結果閲覧・分析機能の実装
+
+## トラブルシューティング
+### ログインできない場合
+1. コンテナログを確認
+   ```bash
+   docker-compose logs remix
+   ```
+
+2. データベースの状態を確認
+   ```bash
+   # MySQLコンテナに接続
+   docker-compose exec db mysql -u root -pp0ssw0rd
+   
+   # データベースを選択
+   USE psyexam;
+   
+   # ユーザーテーブルを確認
+   SELECT * FROM users;
+   ```
+
+3. 必要に応じて管理者ユーザーを手動で作成
+   ```sql
+   INSERT INTO users (username, email, full_name, password, role, is_approved) 
+   VALUES ('admin', 'admin@example.com', '管理者', '$2a$10$K0hyQ9BkYVhVcD0iO5XrGOQ1PfC3hD6QJm1uSvl6NbOQb.0za8Ttu', 'admin', true);
+   ```
+   注: パスワードは「admin123」のハッシュ値です。
+
+### Viteのエラーが発生する場合
+1. node_modulesを削除して再インストール
+   ```bash
+   docker-compose exec remix rm -rf node_modules
+   docker-compose exec remix npm install
+   ```
+
+2. Remixのキャッシュをクリア
+   ```bash
+   docker-compose exec remix npm run clean
+   ```
+
+## コミット手順
+```bash
+git add .
+git commit -m "Fix login issues and Vite configuration"
+git push origin main

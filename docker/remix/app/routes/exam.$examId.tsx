@@ -2,7 +2,7 @@ import { json, type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from
 import { useLoaderData, Form, useNavigation } from "@remix-run/react";
 import fs from "fs/promises";
 import path from "path";
-import { prisma } from "utils/db.server";
+import { prisma } from "../../utils/db.server";
 import { useState } from "react";
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {

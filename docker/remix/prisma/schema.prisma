@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -18,64 +12,77 @@ model Patient {
   sex        Int
   birthdate  DateTime
   initial    String   @db.Char(8)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
   stackedExams StackedExam[]
   results      Result[]
+
+  @@map("patients")
 }
 
 model Exam {
   id        Int      @id @default(autoincrement())
-  examname  String   @db.VarChar(255)
+  examname  String   @unique @db.VarChar(255)
   cutoff    Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   stackedExams StackedExam[]
   results      Result[]
+
+  @@map("exams")
 }
 
 model StackedExam {
   id        Int      @id @default(autoincrement())
   patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  patientId Int
+  patientId Int      @map("patient_id")
   exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
-  examId    Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  examId    Int      @map("exam_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("stacked_exams")
 }
 
 model Result {
   id        Int      @id @default(autoincrement())
   patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  patientId Int
+  patientId Int      @map("patient_id")
   exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
-  examId    Int
-  item0      Int?
-  item1      Int?
-  item2      Int?
-  item3      Int?
-  item4      Int?
-  item5      Int?
-  item6      Int?
-  item7      Int?
-  item8      Int?
-  item9      Int?
+  examId    Int      @map("exam_id")
+  item0     Int?
+  item1     Int?
+  item2     Int?
+  item3     Int?
+  item4     Int?
+  item5     Int?
+  item6     Int?
+  item7     Int?
+  item8     Int?
+  item9     Int?
   free0     String?  @db.VarChar(2000)
   free1     String?  @db.VarChar(2000)
   free2     String?  @db.VarChar(2000)
   free3     String?  @db.VarChar(2000)
   free4     String?  @db.VarChar(2000)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("results")
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  username  String   @unique @db.VarChar(255)
-  password  String   @db.VarChar(255)
-  role      String   @default("doctor") @db.VarChar(50)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         Int      @id @default(autoincrement())
+  username   String   @unique @db.VarChar(255)
+  email      String   @unique @db.VarChar(255)
+  password   String   @db.VarChar(255)
+  fullName   String   @map("full_name") @db.VarChar(255)
+  role       String   @default("doctor") @db.VarChar(50)
+  isApproved Boolean  @default(false) @map("is_approved")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("users")
 }

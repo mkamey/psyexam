@@ -1,8 +1,12 @@
 import { json, redirect, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/node";
 import { useLoaderData, Form, Link } from "@remix-run/react";
 import { prisma } from "../../utils/db.server";
+import { requireApprovedUser } from "../../utils/session.server";
 
-export const loader = async () => {
+export const loader = async ({ request }: LoaderFunctionArgs) => {
+  // 承認済みユーザーのみアクセス可能
+  await requireApprovedUser(request);
+  
   const patients = await prisma.patient.findMany({
     orderBy: { createdAt: "desc" }
   });
@@ -10,6 +14,9 @@ export const loader = async () => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
+  // 承認済みユーザーのみアクセス可能
+  await requireApprovedUser(request);
+  
   const formData = await request.formData();
   const intent = formData.get("intent");
 
