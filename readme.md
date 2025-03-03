@@ -30,6 +30,51 @@ docker-compose up -d
 
 ## 開発状況
 
+### 2025/3/3 - ダークモード機能の改善とバグ修正
+#### 改善内容
+1. TailwindCSS設定の最適化
+   - content パターンを修正し、全コンポーネントのスタイルを適切に処理
+   - variants の拡張によるダークモードの柔軟な適用
+   - カスタムカラーの追加によるテーマの一貫性確保
+
+2. DarkModeContext の機能強化
+   - isLoaded フラグの導入によるローカルストレージの初期化制御
+   - エラーハンドリングの改善
+   - デバッグログの追加
+
+3. Layout コンポーネントの改善
+   - useEffect を使用した HTML 要素への dark クラスの適切な適用
+   - トランジション効果の追加による視覚的な滑らかさの向上
+
+4. 各ページコンポーネントのダークモードスタイル統一
+   - フォーム要素のスタイル統一
+   - テーブルとカードのダークモード対応
+   - ボタンとインタラクティブ要素のコントラスト改善
+
+#### 修正理由
+- ダークモード切り替えが正しく機能しない問題の解決
+- コンポーネント間でのスタイルの一貫性確保
+- ユーザーエクスペリエンスの向上
+
+#### 技術的な詳細
+1. Tailwind設定の変更
+   ```typescript
+   // tailwind.config.ts
+   darkMode: 'class',
+   content: [
+     "./app/**/*.{js,jsx,ts,tsx}",
+     "./app/components/**/*.{js,jsx,ts,tsx}",
+     "./app/routes/**/*.{js,jsx,ts,tsx}",
+   ],
+   ```
+
+2. HTML要素へのダークモードクラス適用
+   ```typescript
+   useEffect(() => {
+     document.documentElement.classList.toggle('dark', isDarkMode);
+   }, [isDarkMode]);
+   ```
+
 ### 2025/3/3 - ダークモードとライトモードの切り替え機能の実装
 #### 改善内容
 1. TailwindCSS設定の更新

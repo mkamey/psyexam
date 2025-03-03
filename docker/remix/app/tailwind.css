@@ -2,11 +2,42 @@
 @tailwind components;
 @tailwind utilities;
 
-html,
-body {
-  @apply bg-white dark:bg-gray-950;
+/* ダークモード対応の強化 */
+html.dark {
+  background-color: #111827; /* bg-gray-950 相当 */
+  color-scheme: dark;
+}
 
-  @media (prefers-color-scheme: dark) {
-    color-scheme: dark;
-  }
+html:not(.dark) {
+  background-color: #ffffff; /* bg-white 相当 */
+}
+
+/* 基本的なダークモードスタイル */
+body {
+  background-color: #ffffff;
+  color: #111827;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+html.dark body {
+  background-color: #111827;
+  color: #f3f4f6;
+}
+
+/* カスタムダークモードクラス */
+.custom-card {
+  @apply bg-white border border-gray-200 rounded-lg shadow-sm;
+}
+
+html.dark .custom-card {
+  background-color: #1f2937; /* bg-gray-800 相当 */
+  border-color: #374151; /* border-gray-700 相当 */
+}
+
+.custom-text {
+  @apply text-gray-700;
+}
+
+html.dark .custom-text {
+  color: #d1d5db; /* text-gray-300 相当 */
 }

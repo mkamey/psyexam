@@ -121,31 +121,31 @@ export default function ManageUsers() {
   const actionData = useActionData<typeof action>();
 
   return (
-    <div className="max-w-6xl mx-auto p-6 bg-white shadow-md rounded-lg">
-      <h1 className="text-2xl font-bold mb-4">ユーザー管理</h1>
+    <div className="max-w-6xl mx-auto p-6 bg-white dark:bg-gray-800 shadow-md rounded-lg transition-colors duration-300">
+      <h1 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">ユーザー管理</h1>
       
       {actionData?.error && (
-        <div className="mb-4 bg-red-50 border-l-4 border-red-500 p-4">
-          <p className="text-red-700">{actionData.error}</p>
+        <div className="mb-4 bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 dark:border-red-600 p-4">
+          <p className="text-red-700 dark:text-red-300">{actionData.error}</p>
         </div>
       )}
       
       {actionData?.success && (
-        <div className="mb-4 bg-green-50 border-l-4 border-green-500 p-4">
-          <p className="text-green-700">{actionData.success}</p>
+        <div className="mb-4 bg-green-50 dark:bg-green-900/30 border-l-4 border-green-500 dark:border-green-600 p-4">
+          <p className="text-green-700 dark:text-green-300">{actionData.success}</p>
         </div>
       )}
       
       {/* ユーザー追加フォーム */}
-      <div className="mb-8 border p-6 rounded-lg bg-gray-50">
-        <h2 className="text-xl font-bold mb-4">新規ユーザー作成</h2>
+      <div className="mb-8 border border-gray-200 dark:border-gray-700 p-6 rounded-lg bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+        <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">新規ユーザー作成</h2>
         <Form method="post" className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-gray-700 mb-1">ユーザー名 <span className="text-red-500">*</span></label>
+            <label className="block text-gray-700 dark:text-gray-300 mb-1">ユーザー名 <span className="text-red-500 dark:text-red-400">*</span></label>
             <input
               type="text"
               name="username"
-              className="w-full border rounded p-2"
+              className="w-full border border-gray-300 dark:border-gray-600 rounded p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-300"
               required
               minLength={3}
               maxLength={50}
@@ -153,39 +153,39 @@ export default function ManageUsers() {
           </div>
           
           <div>
-            <label className="block text-gray-700 mb-1">メールアドレス <span className="text-red-500">*</span></label>
+            <label className="block text-gray-700 dark:text-gray-300 mb-1">メールアドレス <span className="text-red-500 dark:text-red-400">*</span></label>
             <input
               type="email"
               name="email"
-              className="w-full border rounded p-2"
+              className="w-full border border-gray-300 dark:border-gray-600 rounded p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-300"
               required
             />
           </div>
           
           <div>
-            <label className="block text-gray-700 mb-1">氏名 <span className="text-red-500">*</span></label>
+            <label className="block text-gray-700 dark:text-gray-300 mb-1">氏名 <span className="text-red-500 dark:text-red-400">*</span></label>
             <input
               type="text"
               name="fullName"
-              className="w-full border rounded p-2"
+              className="w-full border border-gray-300 dark:border-gray-600 rounded p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-300"
               required
             />
           </div>
           
           <div>
-            <label className="block text-gray-700 mb-1">パスワード <span className="text-red-500">*</span></label>
+            <label className="block text-gray-700 dark:text-gray-300 mb-1">パスワード <span className="text-red-500 dark:text-red-400">*</span></label>
             <input
               type="password"
               name="password"
-              className="w-full border rounded p-2"
+              className="w-full border border-gray-300 dark:border-gray-600 rounded p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-300"
               required
               minLength={8}
             />
           </div>
           
           <div>
-            <label className="block text-gray-700 mb-1">役割 <span className="text-red-500">*</span></label>
-            <select name="role" className="w-full border rounded p-2">
+            <label className="block text-gray-700 dark:text-gray-300 mb-1">役割 <span className="text-red-500 dark:text-red-400">*</span></label>
+            <select name="role" className="w-full border border-gray-300 dark:border-gray-600 rounded p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-300">
               <option value="doctor">医師</option>
               <option value="admin">管理者</option>
             </select>
@@ -196,7 +196,7 @@ export default function ManageUsers() {
               type="submit"
               name="intent"
               value="add"
-              className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold p-2 rounded"
+              className="w-full bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 text-white font-semibold p-2 rounded transition-colors duration-300"
             >
               ユーザーを追加
             </button>
@@ -206,40 +206,48 @@ export default function ManageUsers() {
 
       {/* ユーザー一覧 */}
       <div className="mt-8">
-        <h2 className="text-xl font-bold mb-4">ユーザー一覧</h2>
+        <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">ユーザー一覧</h2>
         <div className="overflow-x-auto">
-          <table className="min-w-full bg-white">
-            <thead className="bg-gray-100">
+          <table className="min-w-full bg-white dark:bg-gray-800 transition-colors duration-300">
+            <thead className="bg-gray-100 dark:bg-gray-700">
               <tr>
-                <th className="py-2 px-4 border-b text-left">ユーザー名</th>
-                <th className="py-2 px-4 border-b text-left">メール</th>
-                <th className="py-2 px-4 border-b text-left">氏名</th>
-                <th className="py-2 px-4 border-b text-left">役割</th>
-                <th className="py-2 px-4 border-b text-left">承認状態</th>
-                <th className="py-2 px-4 border-b text-left">作成日</th>
-                <th className="py-2 px-4 border-b text-left">アクション</th>
+                <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-600 text-left text-gray-900 dark:text-white">ユーザー名</th>
+                <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-600 text-left text-gray-900 dark:text-white">メール</th>
+                <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-600 text-left text-gray-900 dark:text-white">氏名</th>
+                <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-600 text-left text-gray-900 dark:text-white">役割</th>
+                <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-600 text-left text-gray-900 dark:text-white">承認状態</th>
+                <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-600 text-left text-gray-900 dark:text-white">作成日</th>
+                <th className="py-2 px-4 border-b border-gray-200 dark:border-gray-600 text-left text-gray-900 dark:text-white">アクション</th>
               </tr>
             </thead>
             <tbody>
               {users.map(user => (
-                <tr key={user.id} className="hover:bg-gray-50">
-                  <td className="py-2 px-4 border-b">{user.username}</td>
-                  <td className="py-2 px-4 border-b">{user.email}</td>
-                  <td className="py-2 px-4 border-b">{user.fullName}</td>
-                  <td className="py-2 px-4 border-b">
-                    <span className={`px-2 py-1 rounded text-xs ${user.role.toLowerCase() === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
+                <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-300">
+                  <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white">{user.username}</td>
+                  <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white">{user.email}</td>
+                  <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white">{user.fullName}</td>
+                  <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-600">
+                    <span className={`px-2 py-1 rounded text-xs ${
+                      user.role.toLowerCase() === 'admin'
+                        ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300'
+                        : 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300'
+                    }`}>
                       {user.role}
                     </span>
                   </td>
-                  <td className="py-2 px-4 border-b">
-                    <span className={`px-2 py-1 rounded text-xs ${user.isApproved ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                  <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-600">
+                    <span className={`px-2 py-1 rounded text-xs ${
+                      user.isApproved
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
+                        : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300'
+                    }`}>
                       {user.isApproved ? '承認済み' : '承認待ち'}
                     </span>
                   </td>
-                  <td className="py-2 px-4 border-b text-sm">
+                  <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-600 text-sm text-gray-900 dark:text-white">
                     {new Date(user.createdAt).toLocaleDateString()}
                   </td>
-                  <td className="py-2 px-4 border-b">
+                  <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-600">
                     <div className="flex space-x-2">
                       {/* 自分自身は削除できない */}
                       {currentUser?.id !== user.id && (
@@ -249,7 +257,7 @@ export default function ManageUsers() {
                             type="submit"
                             name="intent"
                             value="delete"
-                            className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm"
+                            className="bg-red-600 dark:bg-red-500 hover:bg-red-700 dark:hover:bg-red-600 text-white px-3 py-1 rounded text-sm transition-colors duration-300"
                             onClick={e => {
                               if (!confirm("このユーザーを削除してもよろしいですか?")) {
                                 e.preventDefault();
@@ -269,7 +277,7 @@ export default function ManageUsers() {
                             type="submit"
                             name="intent"
                             value="approve"
-                            className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm"
+                            className="bg-green-600 dark:bg-green-500 hover:bg-green-700 dark:hover:bg-green-600 text-white px-3 py-1 rounded text-sm transition-colors duration-300"
                           >
                             承認
                           </button>
@@ -284,7 +292,7 @@ export default function ManageUsers() {
                             type="submit"
                             name="intent"
                             value="unapprove"
-                            className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm"
+                            className="bg-yellow-600 dark:bg-yellow-500 hover:bg-yellow-700 dark:hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm transition-colors duration-300"
                           >
                             承認取消
                           </button>
@@ -301,7 +309,7 @@ export default function ManageUsers() {
 
       <Link
         to="/index_doctor"
-        className="block text-center text-blue-500 hover:text-blue-600 mt-6"
+        className="block text-center text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 mt-6 transition-colors duration-300"
       >
         戻る
       </Link>
