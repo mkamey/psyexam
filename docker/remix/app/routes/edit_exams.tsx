@@ -1,8 +1,47 @@
-import { json, type ActionFunctionArgs, type LoaderFunctionArgs } from "@remix-run/node";
+import { json, unstable_parseMultipartFormData, type ActionFunctionArgs, type LoaderFunctionArgs, type UploadHandler } from "@remix-run/node";
 import { useFetcher, useLoaderData, Link } from "@remix-run/react";
 import { prisma } from "../../utils/db.server";
 import { requireApprovedUser } from "../../utils/session.server";
-import { useState } from "react";
+import { useState, useRef } from "react";
+import * as path from "path";
+import * as fs from "fs/promises";
+// JSONファイルアップロード用のハンドラー
+const uploadHandler: UploadHandler = async ({ name, contentType, data, filename }) => {
+  if (name !== "examFile") {
+    return undefined;
+  }
+
+  if (!filename || !filename.endsWith('.json')) {
+    throw new Error('JSONファイルのみアップロード可能です');
+  }
+
+  if (contentType !== 'application/json') {
+    throw new Error('JSONファイルのみアップロード可能です');
+  }
+
+  // ストリームからファイルの内容を読み取る
+  const chunks = [];
+  for await (const chunk of data) {
+    chunks.push(chunk);
+  }
+  const buffer = Buffer.concat(chunks);
+
+  try {
+    // JSONの構文を検証
+    JSON.parse(buffer.toString());
+  } catch (e) {
+    throw new Error('無効なJSONファイルです');
+  }
+
+  // 一時ファイルとして保存
+  const tempPath = path.join(process.cwd(), "docker", "remix", "tmp");
+  await fs.mkdir(tempPath, { recursive: true });
+  const tempFilePath = path.join(tempPath, filename);
+  await fs.writeFile(tempFilePath, buffer);
+
+  // Fileオブジェクトを返す
+  return new File([buffer], filename, { type: contentType });
+};
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   // 承認済みユーザーのみアクセス可能
@@ -17,6 +56,33 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   // 承認済みユーザーのみアクセス可能
   await requireApprovedUser(request);
   
+  // ファイルアップロードの処理
+  if (request.method === "POST" && new URL(request.url).searchParams.get("action") === "upload") {
+    try {
+      const formData = await unstable_parseMultipartFormData(request, uploadHandler);
+      const uploadedFile = formData.get("examFile") as File;
+      
+      if (!uploadedFile) {
+        return json({ error: "ファイルがアップロードされていません" }, { status: 400 });
+      }
+
+      // examsディレクトリにファイルを保存
+      const examsDir = path.join(process.cwd(), "docker", "remix", "exams");
+      await fs.mkdir(examsDir, { recursive: true });
+      
+      const fileContent = await uploadedFile.arrayBuffer();
+      await fs.writeFile(
+        path.join(examsDir, uploadedFile.name),
+        Buffer.from(fileContent)
+      );
+
+      return json({ success: true });
+    } catch (error) {
+      return json({ error: error instanceof Error ? error.message : "アップロードに失敗しました" }, { status: 400 });
+    }
+  }
+
+  // 通常のフォーム処理
   const formData = await request.formData();
   const actionType = formData.get("actionType");
 
@@ -54,6 +120,45 @@ export default function ExamPage() {
   const fetcher = useFetcher();
   const [examName, setExamName] = useState("");
   const [cutoff, setCutoff] = useState("");
+  const [uploadStatus, setUploadStatus] = useState<string>("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ファイルアップロード処理
+  const handleFileUpload = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget as HTMLFormElement);
+    const file = formData.get("examFile") as File;
+
+    if (!file) {
+      setUploadStatus("ファイルを選択してください");
+      return;
+    }
+
+    if (!file.name.endsWith('.json')) {
+      setUploadStatus("JSONファイルのみアップロード可能です");
+      return;
+    }
+
+    try {
+      setUploadStatus("アップロード中...");
+      const response = await fetch("?action=upload", {
+        method: "POST",
+        body: formData
+      });
+
+      const result = await response.json();
+      if (result.error) {
+        setUploadStatus(`エラー: ${result.error}`);
+      } else {
+        setUploadStatus("アップロード成功");
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+      }
+    } catch (error) {
+      setUploadStatus("アップロードに失敗しました");
+    }
+  };
 
   // Exam 追加処理
   const addExam = () => {
@@ -83,6 +188,39 @@ export default function ExamPage() {
   return (
     <div className="p-6 max-w-xl mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-lg transition-colors duration-300">
       <h1 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">検査管理</h1>
+
+      {/* JSONファイルアップロードフォーム */}
+      <div className="mb-6 p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+        <h2 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">JSONファイルアップロード</h2>
+        <form onSubmit={handleFileUpload} encType="multipart/form-data" className="space-y-4">
+          <div className="flex flex-col space-y-2">
+            <input
+              type="file"
+              name="examFile"
+              accept=".json"
+              ref={fileInputRef}
+              className="text-sm text-gray-900 dark:text-gray-300"
+            />
+            <button
+              type="submit"
+              className="w-full sm:w-auto bg-green-600 dark:bg-green-500 hover:bg-green-700 dark:hover:bg-green-600 text-white px-4 py-2 rounded transition-colors duration-300"
+            >
+              アップロード
+            </button>
+          </div>
+          {uploadStatus && (
+            <p className={`mt-2 text-sm ${
+              uploadStatus.includes('成功')
+                ? 'text-green-600 dark:text-green-400'
+                : uploadStatus.includes('エラー') || uploadStatus.includes('失敗')
+                ? 'text-red-600 dark:text-red-400'
+                : 'text-gray-600 dark:text-gray-400'
+            }`}>
+              {uploadStatus}
+            </p>
+          )}
+        </form>
+      </div>
 
       {/* 追加フォーム */}
       <div className="mb-6 space-y-4 sm:space-y-0 sm:flex sm:items-center sm:space-x-2">
