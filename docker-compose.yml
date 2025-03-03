@@ -3,7 +3,7 @@ services:
     container_name: remix-container
     build: ./docker/remix
     ports:
-      - 3000:3000
+      - 3010:3000
     volumes:
       - ./docker/remix/app:/usr/server/app
       - ./docker/remix/public:/usr/server/public
@@ -21,6 +21,9 @@ services:
       - DATABASE_URL=mysql://root:p0ssw0rd@db:3306/psyexam
       - SESSION_SECRET=your-super-secret-key-here
       - NODE_ENV=development
+      - DEBUG=express:*
+      - REMIX_DEV_SERVER_WS_PORT=3010
+    restart: unless-stopped
 
   db:
     container_name: mysql-container
@@ -31,25 +34,32 @@ services:
       MYSQL_PASSWORD: p0ssw0rd
       MYSQL_ROOT_PASSWORD: p0ssw0rd
       TZ: 'Asia/Tokyo'
+    restart: unless-stopped
     volumes:
       - ./docker/db/data:/var/lib/mysql
       - ./docker/db/my.cnf:/etc/mysql/conf.d/my.cnf
       - ./docker/db/sql/init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
-      - 3306:3306
+      - 3316:3306
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pp0ssw0rd"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
 
   phpmyadmin:
     container_name: phpmyadmin
     image: phpmyadmin
     environment:
-    - PMA_ARBITRARY=1
-#    - PMA_HOSTS=mysql-container
-#    - PMA_USER=sirsoldano
-#    - PMA_PASSWORD=p0ssw0rd
+      - PMA_HOST=db
+      - PMA_PORT=3306
+      - PMA_USER=root
+      - PMA_PASSWORD=p0ssw0rd
+      - UPLOAD_LIMIT=128M
     ports:
-    - 8080:80
+      - 8090:80
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped

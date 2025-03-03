@@ -69,15 +69,22 @@ function Header() {
   );
 }
 
-export function Layout({ children }: { children: React.ReactNode }) {
-  // ダークモードの状態を取得
+function AppLayout({ children }: { children: React.ReactNode }) {
   const { isDarkMode } = useDarkMode();
-  
+
   useEffect(() => {
-    // HTMLのclassを更新
     document.documentElement.classList.toggle('dark', isDarkMode);
   }, [isDarkMode]);
 
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <Header />
+      {children}
+    </div>
+  );
+}
+
+export default function App() {
   return (
     <html lang="ja" className="h-full">
       <head>
@@ -86,11 +93,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
       </head>
-      <body className="h-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
-        <Header />
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-          {children}
-        </div>
+      <body className="h-full">
+        <ClientOnly>
+          <DarkModeProvider>
+            <AppLayout>
+              <Outlet />
+            </AppLayout>
+          </DarkModeProvider>
+        </ClientOnly>
         <ScrollRestoration />
         <Scripts />
       </body>
@@ -98,30 +108,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ダークモード対応用のルートレイアウトラッパー
-export function DarkModeLayoutWrapper({ children }: { children: React.ReactNode }) {
-  // ダークモードの状態を取得
-  const { isDarkMode } = useDarkMode();
-  
-  // ダークモード状態をデバッグ
-  console.log(`Root Layout: ダークモード状態 = ${isDarkMode}`);
-  
-  return (
-    <div className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
-      {children}
-    </div>
-  );
-}
-
-export default function App() {
-  return (
-    <ClientOnly>
-      <DarkModeLayoutWrapper>
-        <Outlet />
-      </DarkModeLayoutWrapper>
-    </ClientOnly>
-  );
-}
+// DarkModeProviderのインポートを追加
+import { DarkModeProvider } from "./context/DarkModeContext";
 
 // ClientOnlyコンポーネントで使用するuseStateをimport
 import { useState } from "react";

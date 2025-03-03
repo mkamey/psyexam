@@ -84,8 +84,8 @@ type Result = {
   patientId: number;
   examId: number;
   exam: Exam;
-  created_at: string;
-  [key: string]: any; // item0, item1, ... などの動的なプロパティ
+  createdAt: Date;
+  [key: `item${number}`]: number | null; // item0, item1, ... などの動的なプロパティ
 };
 
 export default function DoctorPatientPage() {
@@ -121,12 +121,12 @@ export default function DoctorPatientPage() {
   };
 
   return (
-    <div className="min-h-screen p-8 bg-gray-100">
-      <h1 className="text-2xl font-bold mb-4">検査結果</h1>
+    <div className="p-8">
+      <h1 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">検査結果</h1>
       {results.length > 0 ? (
-        <table className="w-full bg-white shadow-md rounded-lg overflow-hidden">
+        <table className="w-full bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
           <thead>
-            <tr className="bg-blue-500 text-white">
+            <tr className="bg-blue-500 dark:bg-blue-700 text-white">
               <th className="p-2">検査名</th>
               <th className="p-2">スコア</th>
               <th className="p-2">日付</th>
@@ -134,41 +134,42 @@ export default function DoctorPatientPage() {
           </thead>
           <tbody>
             {results.map((result) => (
-              <tr key={result.id} className="border-t">
-                <td className="p-2">{result.exam.examname}</td>
-                <td className="p-2">
-                  {Array.from({ length: 10 }).map((_, i) =>
-                    result[`item${i}`] !== null ? result[`item${i}`] : "N/A"
-                  ).join(", ")}
+              <tr key={result.id} className="border-t border-gray-200 dark:border-gray-700">
+                <td className="p-2 text-gray-900 dark:text-gray-100">{result.exam.examname}</td>
+                <td className="p-2 text-gray-900 dark:text-gray-100">
+                  {Array.from({ length: 10 }).map((_, i) => {
+                    const itemKey = `item${i}` as keyof typeof result;
+                    return result[itemKey] !== null ? result[itemKey] : "N/A";
+                  }).join(", ")}
                 </td>
-                <td className="p-2">{new Date(result.createdAt).toLocaleDateString()}</td>
+                <td className="p-2 text-gray-900 dark:text-gray-100">{new Date(result.createdAt).toLocaleDateString()}</td>
               </tr>
             ))}
           </tbody>
         </table>
       ) : (
-        <p className="text-gray-500">データがありません</p>
+        <p className="text-gray-500 dark:text-gray-400">データがありません</p>
       )}
 
       {/* 予定されている検査一覧 */}
       <section className="mb-8 mt-8">
-        <h2 className="text-xl font-semibold mb-2">予定されている検査</h2>
+        <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">予定されている検査</h2>
         {localStackedExams.length > 0 ? (
-          <table className="w-full bg-white shadow-md rounded-lg overflow-hidden">
+          <table className="w-full bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
             <thead>
-              <tr className="bg-red-500 text-white">
+              <tr className="bg-red-500 dark:bg-red-700 text-white">
                 <th className="p-2">検査名</th>
                 <th className="p-2">操作</th>
               </tr>
             </thead>
             <tbody>
               {localStackedExams.map((exam) => (
-                <tr key={exam.examId} className="border-t">
-                  <td className="p-2">{exam.exam.examname}</td>
+                <tr key={exam.examId} className="border-t border-gray-200 dark:border-gray-700">
+                  <td className="p-2 text-gray-900 dark:text-gray-100">{exam.exam.examname}</td>
                   <td className="p-2">
                     <button
                       onClick={() => deleteStackedExam(exam.examId)}
-                      className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded"
+                      className="bg-red-500 hover:bg-red-600 dark:bg-red-700 dark:hover:bg-red-800 text-white px-4 py-2 rounded"
                     >
                       削除
                     </button>
@@ -178,7 +179,7 @@ export default function DoctorPatientPage() {
             </tbody>
           </table>
         ) : (
-          <p className="text-gray-500">予定されている検査がありません</p>
+          <p className="text-gray-500 dark:text-gray-400">予定されている検査がありません</p>
         )}
       </section>
 
@@ -186,21 +187,21 @@ export default function DoctorPatientPage() {
       <section>
         <h2 className="text-xl font-semibold mb-2">追加できる検査</h2>
         {localAvailableExams.length > 0 ? (
-          <table className="w-full bg-white shadow-md rounded-lg overflow-hidden">
+          <table className="w-full bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
             <thead>
-              <tr className="bg-green-500 text-white">
+              <tr className="bg-green-500 dark:bg-green-700 text-white">
                 <th className="p-2">検査名</th>
                 <th className="p-2">操作</th>
               </tr>
             </thead>
             <tbody>
               {localAvailableExams.map((exam) => (
-                <tr key={exam.id} className="border-t">
-                  <td className="p-2">{exam.examname}</td>
+                <tr key={exam.id} className="border-t border-gray-200 dark:border-gray-700">
+                  <td className="p-2 text-gray-900 dark:text-gray-100">{exam.examname}</td>
                   <td className="p-2">
                     <button
                       onClick={() => addStackedExam(exam.id)}
-                      className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
+                      className="bg-green-500 hover:bg-green-600 dark:bg-green-700 dark:hover:bg-green-800 text-white px-4 py-2 rounded"
                     >
                       追加
                     </button>
@@ -210,14 +211,14 @@ export default function DoctorPatientPage() {
             </tbody>
           </table>
         ) : (
-          <p className="text-gray-500">追加できる検査はありません</p>
+          <p className="text-gray-500 dark:text-gray-400">追加できる検査はありません</p>
         )}
       </section>
       
       <div className="mt-8">
         <a 
           href="/index_doctor" 
-          className="inline-block bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+          className="inline-block bg-blue-500 hover:bg-blue-600 dark:bg-blue-700 dark:hover:bg-blue-800 text-white px-4 py-2 rounded"
         >
           戻る
         </a>
