@@ -15,10 +15,6 @@ const uploadHandler: UploadHandler = async ({ name, contentType, data, filename 
     throw new Error('JSONファイルのみアップロード可能です');
   }
 
-  if (contentType !== 'application/json') {
-    throw new Error('JSONファイルのみアップロード可能です');
-  }
-
   // ストリームからファイルの内容を読み取る
   const chunks = [];
   for await (const chunk of data) {
@@ -33,14 +29,8 @@ const uploadHandler: UploadHandler = async ({ name, contentType, data, filename 
     throw new Error('無効なJSONファイルです');
   }
 
-  // 一時ファイルとして保存
-  const tempPath = path.join(process.cwd(), "docker", "remix", "tmp");
-  await fs.mkdir(tempPath, { recursive: true });
-  const tempFilePath = path.join(tempPath, filename);
-  await fs.writeFile(tempFilePath, buffer);
-
-  // Fileオブジェクトを返す
-  return new File([buffer], filename, { type: contentType });
+  // File オブジェクトを作成
+  return new File([buffer], filename);
 };
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -66,17 +56,28 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return json({ error: "ファイルがアップロードされていません" }, { status: 400 });
       }
 
-      // examsディレクトリにファイルを保存
-      const examsDir = path.join(process.cwd(), "docker", "remix", "exams");
-      await fs.mkdir(examsDir, { recursive: true });
-      
-      const fileContent = await uploadedFile.arrayBuffer();
-      await fs.writeFile(
-        path.join(examsDir, uploadedFile.name),
-        Buffer.from(fileContent)
-      );
-
-      return json({ success: true });
+      try {
+        // examsディレクトリにファイルを保存
+        const examsDir = "/usr/server/exams";
+        console.log("保存先ディレクトリ:", examsDir);
+        
+        await fs.mkdir(examsDir, { recursive: true });
+        
+        const fileContent = await uploadedFile.arrayBuffer();
+        const savePath = path.join(examsDir, uploadedFile.name);
+        console.log("ファイル保存パス:", savePath);
+        
+        await fs.writeFile(
+          savePath,
+          Buffer.from(fileContent)
+        );
+        
+        console.log("ファイル保存完了:", uploadedFile.name);
+        return json({ success: true });
+      } catch (error) {
+        console.error("ファイル保存エラー:", error);
+        throw error;
+      }
     } catch (error) {
       return json({ error: error instanceof Error ? error.message : "アップロードに失敗しました" }, { status: 400 });
     }
@@ -141,20 +142,19 @@ export default function ExamPage() {
 
     try {
       setUploadStatus("アップロード中...");
-      const response = await fetch("?action=upload", {
+      setUploadStatus("アップロード中...");
+      
+      await fetcher.submit(formData, {
         method: "POST",
-        body: formData
+        action: "?action=upload",
+        encType: "multipart/form-data"
       });
 
-      const result = await response.json();
-      if (result.error) {
-        setUploadStatus(`エラー: ${result.error}`);
-      } else {
-        setUploadStatus("アップロード成功");
-        if (fileInputRef.current) {
-          fileInputRef.current.value = "";
-        }
+      setUploadStatus("アップロード成功");
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
       }
+
     } catch (error) {
       setUploadStatus("アップロードに失敗しました");
     }
