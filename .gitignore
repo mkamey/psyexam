@@ -48,6 +48,9 @@ yarn-error.log*
 package-lock.json
 yarn.lock
 
+# 著作権保護された試験データ
+docker/remix/exams/EDI-3.json
+
 # その他
 *.swp
 *.swo
