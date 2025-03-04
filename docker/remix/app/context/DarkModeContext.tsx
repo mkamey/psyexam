@@ -17,8 +17,13 @@ const DarkModeContext = createContext<DarkModeContextType>({
 // コンテキストを使用するためのカスタムフック
 export const useDarkMode = () => useContext(DarkModeContext);
 
+// サーバーサイドレンダリングかどうかを判定するヘルパー関数
+const isServer = typeof window === 'undefined';
+
 // コンテキストプロバイダーコンポーネント
 export function DarkModeProvider({ children }: { children: React.ReactNode }) {
+  console.log(`DarkModeProvider レンダリング - サーバーサイド？ ${isServer ? 'はい' : 'いいえ'}`);
+  
   // クライアントサイドのみで実行されるようにする - 初期値をnullではなくfalseに設定
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   // ローカルストレージからのロードが完了したかどうかを追跡
@@ -26,6 +31,9 @@ export function DarkModeProvider({ children }: { children: React.ReactNode }) {
 
   // マウント時にローカルストレージとシステム設定を確認
   useEffect(() => {
+    // サーバーサイドでは何もしない
+    if (isServer) return;
+    
     console.log('DarkModeProvider useEffect が実行されました');
     // ローカルストレージから値を読み込む前に初期化済みフラグをfalseに設定
     if (isLoaded) return;
@@ -53,6 +61,9 @@ export function DarkModeProvider({ children }: { children: React.ReactNode }) {
 
   // isDarkModeが変更されたらHTMLにclassを適用
   useEffect(() => {
+    // サーバーサイドでは何もしない
+    if (isServer) return;
+    
     // isLoadedがfalseの場合は、初期ロード中なのでスキップ
     if (!isLoaded) return;
 

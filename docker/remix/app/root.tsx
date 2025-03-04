@@ -94,15 +94,16 @@ export default function App() {
         <Links />
       </head>
       <body className="h-full">
-        <ClientOnly>
-          <DarkModeProvider>
-            <AppLayout>
-              <Outlet />
-            </AppLayout>
-          </DarkModeProvider>
-        </ClientOnly>
+        {/* Outlet をClientOnlyでラップしないようにする */}
+        <DarkModeProvider>
+          <AppLayout>
+            <Outlet />
+          </AppLayout>
+        </DarkModeProvider>
         <ScrollRestoration />
         <Scripts />
+        {/* ダークモード初期化のデバッグ出力 */}
+        <script dangerouslySetInnerHTML={{ __html: `console.log("Remixアプリがロードされました");` }} />
       </body>
     </html>
   );
