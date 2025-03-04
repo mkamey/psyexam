@@ -23,14 +23,14 @@ services:
       - NODE_ENV=development
       - DEBUG=express:*
       - REMIX_DEV_SERVER_WS_PORT=3010
-      - FASTAPI_URL=http://fastapi:8000
+      - FASTAPI_URL=http://fastapi:8110
     restart: unless-stopped
   
   fastapi:
     container_name: fastapi-container
     build: ./fastapi
     ports:
-      - 8000:8000
+      - 8110:8000
     volumes:
       - ./fastapi/app:/app/app
     depends_on:

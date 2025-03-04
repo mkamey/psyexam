@@ -51,6 +51,12 @@ yarn.lock
 # 著作権保護された試験データ
 docker/remix/exams/EDI-3.json
 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
 # その他
 *.swp
 *.swo
