@@ -34,6 +34,57 @@ docker-compose up -d
 
 ## 開発状況
 
+### 2025/3/4 - 検査結果のグラフ表示機能強化
+#### 改善内容
+1. 結果表示の視覚化を強化
+   - 総合スコアをドーナツグラフで表示する機能を追加
+   - 時系列データのグラフ表示条件を改善（1件のデータでも表示可能に）
+   - 領域別分析にプログレスバーとカラーコードを追加
+
+2. UI/UX改善
+   - ドーナツグラフのサイズを拡大し視認性を向上
+   - 重症度別のカラーコードを設定し、直感的な理解を促進
+   - 領域別分析のデザインを洗練し、情報の階層を明確化
+
+#### 修正理由
+- 数値だけでは理解しにくいスコア情報の視覚化
+- 経時的な症状の変化を一目で把握できる機能の提供
+- ユーザーエクスペリエンスとデータの可読性の向上
+
+#### 技術的な詳細
+1. ドーナツグラフコンポーネントの強化
+```jsx
+<div className="w-48 h-48 relative flex items-center justify-center bg-gray-50 dark:bg-gray-900 rounded-lg p-2">
+  <div className="absolute top-2 left-2 text-xs text-gray-500 dark:text-gray-400 font-medium">
+    総合スコア
+  </div>
+  <DonutChart
+    score={analysisResults[result.id]!.total_score}
+    maxScore={Object.values(analysisResults[result.id]!.details.domain_analysis).reduce(
+      (sum, domain) => sum + domain.max_score, 0
+    )}
+    severity={analysisResults[result.id]!.severity}
+  />
+</div>
+```
+
+2. 時系列データ表示の拡張
+```jsx
+{/* 時系列データがある場合は時系列グラフを表示 - 1件のみでも表示 */}
+{timeSeriesData[result.examId] && timeSeriesData[result.examId].length > 0 && (
+  <div className="mt-6">
+    <h4 className="font-semibold mb-2">時系列データ:</h4>
+    <div className="h-64 w-full">
+      <TimeSeriesChart
+        data={timeSeriesData[result.examId]}
+        examName={result.exam.examname}
+        cutoff={result.exam.cutoff}
+      />
+    </div>
+  </div>
+)}
+```
+
 ### 2025/3/4 - FastAPI解析結果のレスポンス処理修正
 #### 改善内容
 1. FastAPIのレスポンス処理を修正

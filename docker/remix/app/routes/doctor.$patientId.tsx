@@ -2,7 +2,7 @@ import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs } from
 import { useLoaderData, useFetcher } from "@remix-run/react";
 import { prisma } from "../../utils/db.server";
 import { requireApprovedUser } from "../../utils/session.server";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 
 // Loader: データ取得
@@ -91,7 +91,7 @@ type Result = {
   patientId: number;
   examId: number;
   exam: Exam;
-  createdAt: Date;
+  createdAt: string | Date;
   [key: `item${number}`]: number | null; // item0, item1, ... などの動的なプロパティ
 };
 
@@ -101,6 +101,8 @@ type AnalysisResult = {
   total_score: number;
   severity: string;
   interpretation: string;
+  result_id: number;
+  exam_id: number;
   details: {
     item_scores: { [key: string]: number };
     domain_analysis: {
@@ -114,6 +116,262 @@ type AnalysisResult = {
   }
 };
 
+// ドーナツグラフコンポーネント
+const DonutChart = ({ score, maxScore, severity }: { score: number, maxScore: number, severity: string }) => {
+
+  // 円の中心点と半径を設定
+  const centerX = 70;
+  const centerY = 70;
+  const radius = 60;
+  const strokeWidth = 12;
+  
+  // スコアの割合を計算
+  const percentage = (score / maxScore) * 100;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (percentage / 100) * circumference;
+  
+  // 重症度によって色を変更
+  const getColor = () => {
+    switch(severity.toLowerCase()) {
+      case 'severe':
+      case '重度':
+        return '#ef4444'; // red-500
+      case 'moderate':
+      case '中等度':
+        return '#f97316'; // orange-500
+      case 'mild':
+      case '軽度':
+        return '#facc15'; // yellow-400
+      case 'normal':
+      case '正常':
+      default:
+        return '#10b981'; // emerald-500
+    }
+  };
+  
+  return (
+    <svg width="100%" height="100%" viewBox="0 0 140 140">
+      {/* 背景の円 */}
+      <circle
+        cx={centerX}
+        cy={centerY}
+        r={radius}
+        fill="transparent"
+        stroke="#e5e7eb" // gray-200
+        strokeWidth={strokeWidth}
+      />
+      
+      {/* スコアを表す円弧 */}
+      <circle
+        cx={centerX}
+        cy={centerY}
+        r={radius}
+        fill="transparent"
+        stroke={getColor()}
+        strokeWidth={strokeWidth}
+        strokeDasharray={circumference}
+        strokeDashoffset={strokeDashoffset}
+        strokeLinecap="round"
+        transform={`rotate(-90 ${centerX} ${centerY})`}
+      />
+      
+      {/* 中央のテキスト */}
+      <text
+        x={centerX}
+        y={centerY - 10}
+        textAnchor="middle"
+        fontSize="14"
+        fontWeight="bold"
+        fill="#1f2937" // gray-800
+        className="dark:fill-white"
+      >
+        {Math.round(percentage)}%
+      </text>
+      <text
+        x={centerX}
+        y={centerY + 10}
+        textAnchor="middle"
+        fontSize="12"
+        fill="#6b7280" // gray-500
+        className="dark:fill-gray-300"
+      >
+        {score}/{maxScore}
+      </text>
+    </svg>
+  );
+};
+
+// 時系列グラフコンポーネント
+const TimeSeriesChart = ({ 
+  data, 
+  examName,
+  cutoff
+}: { 
+  data: { date: string; totalScore: number }[], 
+  examName: string,
+  cutoff: number
+}) => {
+  // グラフのサイズと余白を設定
+  const width = 800;
+  const height = 250;
+  const padding = { top: 20, right: 30, bottom: 40, left: 50 };
+  
+  // データポイントの最大値を取得
+  const maxScore = Math.max(...data.map(d => d.totalScore), cutoff);
+  
+  // スケールを設定
+  const xScale = data.map((_, i) => i * ((width - padding.left - padding.right) / (data.length - 1)));
+  const yScale = (score: number) => {
+    return height - padding.bottom - ((score / (maxScore * 1.1)) * (height - padding.top - padding.bottom));
+  };
+  
+  // データポイントを設定
+  const points = data.map((d, i) => ({
+    x: padding.left + xScale[i],
+    y: yScale(d.totalScore),
+    score: d.totalScore,
+    date: d.date
+  }));
+  
+  // 折れ線のパスを生成
+  const linePath = `M ${points.map(p => `${p.x},${p.y}`).join(' L ')}`;
+  
+  // カットオフライン(基準値)のY座標
+  const cutoffY = yScale(cutoff);
+  
+  return (
+    <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid meet">
+      {/* タイトル */}
+      <text x={width / 2} y={padding.top} textAnchor="middle" fontSize="14" fontWeight="bold" fill="#1f2937" className="dark:fill-white">
+        {examName}の時系列データ
+      </text>
+      
+      {/* X軸 */}
+      <line
+        x1={padding.left}
+        y1={height - padding.bottom}
+        x2={width - padding.right}
+        y2={height - padding.bottom}
+        stroke="#9ca3af" // gray-400
+        strokeWidth="1"
+      />
+      
+      {/* Y軸 */}
+      <line
+        x1={padding.left}
+        y1={padding.top}
+        x2={padding.left}
+        y2={height - padding.bottom}
+        stroke="#9ca3af" // gray-400
+        strokeWidth="1"
+      />
+      
+      {/* X軸ラベル */}
+      {points.map((point, i) => (
+        <g key={`x-label-${i}`}>
+          <line
+            x1={point.x}
+            y1={height - padding.bottom}
+            x2={point.x}
+            y2={height - padding.bottom + 5}
+            stroke="#9ca3af" // gray-400
+            strokeWidth="1"
+          />
+          <text
+            x={point.x}
+            y={height - padding.bottom + 20}
+            textAnchor="middle"
+            fontSize="10"
+            fill="#6b7280" // gray-500
+            className="dark:fill-gray-300"
+          >
+            {point.date}
+          </text>
+        </g>
+      ))}
+      
+      {/* Y軸ラベル (5分割) */}
+      {Array.from({ length: 6 }).map((_, i) => {
+        const yValue = Math.round((maxScore * 1.1) * (i / 5));
+        const y = yScale(yValue);
+        return (
+          <g key={`y-label-${i}`}>
+            <line
+              x1={padding.left - 5}
+              y1={y}
+              x2={padding.left}
+              y2={y}
+              stroke="#9ca3af" // gray-400
+              strokeWidth="1"
+            />
+            <text
+              x={padding.left - 10}
+              y={y + 4}
+              textAnchor="end"
+              fontSize="10"
+              fill="#6b7280" // gray-500
+              className="dark:fill-gray-300"
+            >
+              {yValue}
+            </text>
+          </g>
+        );
+      })}
+      
+      {/* カットオフライン */}
+      <line
+        x1={padding.left}
+        y1={cutoffY}
+        x2={width - padding.right}
+        y2={cutoffY}
+        stroke="#ef4444" // red-500
+        strokeWidth="1"
+        strokeDasharray="4,4"
+      />
+      <text
+        x={width - padding.right + 5}
+        y={cutoffY + 4}
+        textAnchor="start"
+        fontSize="10"
+        fill="#ef4444" // red-500
+      >
+        カットオフ: {cutoff}
+      </text>
+      
+      {/* データの折れ線 */}
+      <path
+        d={linePath}
+        fill="none"
+        stroke="#3b82f6" // blue-500
+        strokeWidth="2"
+      />
+      
+      {/* データポイント */}
+      {points.map((point, i) => (
+        <g key={`point-${i}`}>
+          <circle
+            cx={point.x}
+            cy={point.y}
+            r="4"
+            fill="#3b82f6" // blue-500
+          />
+          <text
+            x={point.x}
+            y={point.y - 10}
+            textAnchor="middle"
+            fontSize="10"
+            fontWeight="bold"
+            fill="#1f2937" // gray-800
+            className="dark:fill-white"
+          >
+            {point.score}
+          </text>
+        </g>
+      ))}
+    </svg>
+  );
+};
+
 export default function DoctorPatientPage() {
   const { results, patientId, stackedExams, availableExams } = useLoaderData<typeof loader>();
   const fetcher = useFetcher();
@@ -122,9 +380,79 @@ export default function DoctorPatientPage() {
   const [analyzing, setAnalyzing] = useState<{ [key: number]: boolean }>({});
   const [analysisResults, setAnalysisResults] = useState<{ [key: number]: AnalysisResult | null }>({});
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [examResultsMap, setExamResultsMap] = useState<{ [examId: number]: Result[] }>({});
+  const [timeSeriesData, setTimeSeriesData] = useState<{ [examId: number]: { date: string; totalScore: number }[] }>({});
   
-  // FastAPIのURLを環境変数から取得（ブラウザからのアクセス用）
+  // FastAPIのURLを環境変数から取得(ブラウザからのアクセス用)
   const FASTAPI_URL = "http://localhost:8110";
+
+  // 検査IDごとに結果をグループ化する
+  useEffect(() => {
+    const examResults: { [examId: number]: Result[] } = {};
+    results.forEach(result => {
+      if (!examResults[result.examId]) {
+        examResults[result.examId] = [];
+      }
+      examResults[result.examId].push(result);
+    });
+    
+    // 各検査の時系列データを構築
+    const timeSeriesMap: { [examId: number]: { date: string; totalScore: number }[] } = {};
+    
+    // 検査IDごとに時系列データを構築
+    Object.entries(examResults).forEach(([examId, resultList]) => {
+      // 結果が1件でも時系列データを準備するように修正(以前は2件以上のみ)
+      if (resultList.length > 0) {
+        console.log(`検査ID ${examId} の結果数: ${resultList.length}`);
+        const sortedResults = [...resultList].sort((a, b) => 
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+        
+        // 時系列データの準備
+        timeSeriesMap[Number(examId)] = sortedResults.map(result => {
+          // 各resultからtotal_scoreを計算 (item0 ~ item9の合計)
+          let totalScore = 0;
+          for (let i = 0; i < 10; i++) {
+            const itemValue = result[`item${i}` as keyof typeof result];
+            if (itemValue !== null) {
+              totalScore += Number(itemValue);
+            }
+          }
+          
+          console.log(`日付: ${new Date(result.createdAt).toLocaleDateString()}, スコア: ${totalScore}`);
+          return {
+            date: new Date(result.createdAt).toLocaleDateString(),
+            totalScore: totalScore
+          };
+        });
+      }
+    });
+    
+    setExamResultsMap(examResults);
+    setTimeSeriesData(timeSeriesMap);
+  }, [results]);
+  
+  // 追加の解析結果をロードする
+  useEffect(() => {
+    const loadAnalysisResults = async () => {
+      for (const result of results) {
+        try {
+          const response = await axios.get(`${FASTAPI_URL}/api/analysis/result/${result.id}`);
+          if (response.data) {
+            setAnalysisResults(prev => ({
+              ...prev,
+              [result.id]: response.data
+            }));
+          }
+        } catch (error) {
+          // 解析結果がない場合は無視
+          console.log(`Result ${result.id} has no analysis yet`);
+        }
+      }
+    };
+    
+    loadAnalysisResults();
+  }, [results]);
 
   // 検査削除処理
   const deleteStackedExam = (examId: number) => {
@@ -235,14 +563,33 @@ export default function DoctorPatientPage() {
                     <td colSpan={4} className="p-4">
                       <div className="bg-white dark:bg-gray-800 p-4 rounded shadow-inner">
                         <h3 className="font-bold text-lg mb-2 text-gray-900 dark:text-white">解析結果</h3>
-                        <div className="mb-2">
-                          <span className="font-semibold">総合スコア: </span>
-                          <span>{analysisResults[result.id]!.total_score}</span>
+                        <div className="flex flex-col md:flex-row items-start md:items-center gap-4 mb-4">
+                          <div className="flex-1">
+                            <div className="mb-2">
+                              <span className="font-semibold">総合スコア: </span>
+                              <span>{analysisResults[result.id]!.total_score}</span>
+                            </div>
+                            <div className="mb-2">
+                              <span className="font-semibold">重症度: </span>
+                              <span>{analysisResults[result.id]!.severity}</span>
+                            </div>
+                          </div>
+                        
+                          {/* ドーナツグラフ表示 - サイズ拡大 */}
+                          <div className="w-48 h-48 relative flex items-center justify-center bg-gray-50 dark:bg-gray-900 rounded-lg p-2">
+                            <div className="absolute top-2 left-2 text-xs text-gray-500 dark:text-gray-400 font-medium">
+                              総合スコア
+                            </div>
+                            <DonutChart
+                              score={analysisResults[result.id]!.total_score}
+                              maxScore={Object.values(analysisResults[result.id]!.details.domain_analysis).reduce(
+                                (sum, domain) => sum + domain.max_score, 0
+                              )}
+                              severity={analysisResults[result.id]!.severity}
+                            />
+                          </div>
                         </div>
-                        <div className="mb-2">
-                          <span className="font-semibold">重症度: </span>
-                          <span>{analysisResults[result.id]!.severity}</span>
-                        </div>
+
                         <div className="mb-4">
                           <span className="font-semibold">解釈: </span>
                           <p className="mt-1">{analysisResults[result.id]!.interpretation}</p>
@@ -252,15 +599,57 @@ export default function DoctorPatientPage() {
                           <h4 className="font-semibold mb-2">領域別分析:</h4>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {Object.entries(analysisResults[result.id]!.details.domain_analysis).map(([domain, data]) => (
-                              <div key={domain} className="border rounded p-3 dark:border-gray-700">
-                                <h5 className="font-semibold">{domain}</h5>
-                                <div>スコア: {data.score}/{data.max_score}</div>
-                                <div>重症度: {data.severity}</div>
+                              <div key={domain} className="border rounded p-3 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
+                                <h5 className="font-semibold text-gray-900 dark:text-white">{domain}</h5>
+                                <div className="mt-2">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className="text-sm text-gray-700 dark:text-gray-300">スコア: {data.score}/{data.max_score}</span>
+                                    <span className={`text-xs font-medium px-2 py-0.5 rounded ${
+                                      data.severity.toLowerCase().includes('重度') || data.severity.toLowerCase().includes('severe')
+                                        ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                                        : data.severity.toLowerCase().includes('中等度') || data.severity.toLowerCase().includes('moderate')
+                                        ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
+                                        : data.severity.toLowerCase().includes('軽度') || data.severity.toLowerCase().includes('mild')
+                                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                        : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                    }`}>
+                                      {data.severity}
+                                    </span>
+                                  </div>
+                                  <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                                    <div
+                                      className={`h-2.5 rounded-full ${
+                                        data.severity.toLowerCase().includes('重度') || data.severity.toLowerCase().includes('severe')
+                                          ? 'bg-red-500'
+                                          : data.severity.toLowerCase().includes('中等度') || data.severity.toLowerCase().includes('moderate')
+                                          ? 'bg-orange-500'
+                                          : data.severity.toLowerCase().includes('軽度') || data.severity.toLowerCase().includes('mild')
+                                          ? 'bg-yellow-400'
+                                          : 'bg-emerald-500'
+                                      }`}
+                                      style={{ width: `${(data.score / data.max_score) * 100}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
                               </div>
                             ))}
                           </div>
                         </div>
                       </div>
+                      
+                      {/* 時系列データがある場合は時系列グラフを表示 - 修正：1件のみでも表示 */}
+                      {timeSeriesData[result.examId] && timeSeriesData[result.examId].length > 0 && (
+                        <div className="mt-6">
+                          <h4 className="font-semibold mb-2">時系列データ:</h4>
+                          <div className="h-64 w-full">
+                            <TimeSeriesChart 
+                              data={timeSeriesData[result.examId]} 
+                              examName={result.exam.examname}
+                              cutoff={result.exam.cutoff}
+                            />
+                          </div>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 )}
