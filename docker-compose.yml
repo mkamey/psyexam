@@ -23,7 +23,7 @@ services:
       - NODE_ENV=development
       - DEBUG=express:*
       - REMIX_DEV_SERVER_WS_PORT=3010
-      - FASTAPI_URL=http://fastapi:8110
+      - FASTAPI_URL=http://fastapi:8000
     restart: unless-stopped
   
   fastapi:

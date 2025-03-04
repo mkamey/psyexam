@@ -31,6 +31,14 @@ class AnalysisResultResponse(AnalysisResultBase):
 
     class Config:
         from_attributes = True  # SQLAlchemyモデルからの変換を許可
+        
+        # モデルのフィールド名とプロパティ名のマッピング
+        @staticmethod
+        def schema_extra(schema, model):
+            props = schema.get('properties', {})
+            # detailsフィールドをdetails_dictプロパティにマッピング
+            if 'details' in props and hasattr(model, 'details_dict'):
+                schema['properties']['details'] = {'type': 'object'}
 
 
 # 検査結果データのスキーマ

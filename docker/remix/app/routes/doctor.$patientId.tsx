@@ -123,8 +123,8 @@ export default function DoctorPatientPage() {
   const [analysisResults, setAnalysisResults] = useState<{ [key: number]: AnalysisResult | null }>({});
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   
-  // FastAPIのURLを環境変数から取得
-  const FASTAPI_URL = "http://localhost:8000";
+  // FastAPIのURLを環境変数から取得（ブラウザからのアクセス用）
+  const FASTAPI_URL = "http://localhost:8110";
 
   // 検査削除処理
   const deleteStackedExam = (examId: number) => {

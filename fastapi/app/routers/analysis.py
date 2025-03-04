@@ -50,7 +50,20 @@ async def analyze_result(
     if existing_analysis:
         # 既存の解析結果がある場合はそれを返す
         logger.info(f"ID {result_id} の既存の解析結果を返します")
-        return existing_analysis
+        # details_dictプロパティを使用するために一度辞書に変換してからモデルを作成
+        analysis_dict = {
+            "id": existing_analysis.id,
+            "result_id": existing_analysis.result_id,
+            "patient_id": existing_analysis.patient_id,
+            "exam_id": existing_analysis.exam_id,
+            "total_score": existing_analysis.total_score,
+            "details": existing_analysis.details_dict,  # JSON文字列を辞書に変換
+            "interpretation": existing_analysis.interpretation,
+            "severity": existing_analysis.severity,
+            "created_at": existing_analysis.created_at,
+            "updated_at": existing_analysis.updated_at
+        }
+        return schemas.AnalysisResultResponse(**analysis_dict)
     
     # 検査タイプの取得
     exam = db.query(models.Exam).filter(models.Exam.id == result.exam_id).first()
@@ -91,7 +104,20 @@ async def analyze_result(
         db.refresh(db_analysis)
         
         logger.info(f"ID {result_id} の検査結果の解析を完了しました")
-        return db_analysis
+        # details_dictプロパティを使用するために一度辞書に変換してからモデルを作成
+        analysis_dict = {
+            "id": db_analysis.id,
+            "result_id": db_analysis.result_id,
+            "patient_id": db_analysis.patient_id,
+            "exam_id": db_analysis.exam_id,
+            "total_score": db_analysis.total_score,
+            "details": db_analysis.details_dict,  # JSON文字列を辞書に変換
+            "interpretation": db_analysis.interpretation,
+            "severity": db_analysis.severity,
+            "created_at": db_analysis.created_at,
+            "updated_at": db_analysis.updated_at
+        }
+        return schemas.AnalysisResultResponse(**analysis_dict)
     
     except Exception as e:
         db.rollback()

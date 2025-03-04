@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, Text, Float
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
+import json
 from .database import Base
 
 # 既存のテーブル構造を再定義（読み取り用）
@@ -91,3 +92,13 @@ class AnalysisResult(Base):
     result = relationship("Result", back_populates="analysis_result")
     patient = relationship("Patient", back_populates="analysis_results")
     exam = relationship("Exam", back_populates="analysis_results")
+
+    @property
+    def details_dict(self):
+        """JSONテキストを辞書に変換して返す"""
+        if self.details:
+            try:
+                return json.loads(self.details)
+            except json.JSONDecodeError:
+                return {}
+        return {}
