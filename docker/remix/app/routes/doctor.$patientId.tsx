@@ -3,6 +3,7 @@ import { useLoaderData, useFetcher } from "@remix-run/react";
 import { prisma } from "../../utils/db.server";
 import { requireApprovedUser } from "../../utils/session.server";
 import { useState } from "react";
+import axios from "axios";
 
 // Loader: データ取得
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
@@ -42,8 +43,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const patientId = Number(formData.get("patientId"));
   const examId = Number(formData.get("examId"));
   const actionType = formData.get("actionType");
+  const resultId = formData.get("resultId") ? Number(formData.get("resultId")) : null;
 
-  if (!patientId || !examId) {
+  if (!patientId || (!examId && actionType !== "analyze")) {
     return json({ error: "Invalid data" }, { status: 400 });
   }
 
@@ -51,6 +53,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     await prisma.stackedExam.deleteMany({
       where: { patientId, examId },
     });
+    return redirect(`/doctor/${patientId}`);
   } else if (actionType === "add") {
     const exists = await prisma.stackedExam.findFirst({
       where: { patientId, examId },
@@ -61,6 +64,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         data: { patientId, examId },
       });
     }
+    return redirect(`/doctor/${patientId}`);
+  } else if (actionType === "analyze" && resultId) {
+    // 解析処理は別途クライアントサイドで行う
+    return json({ status: "ok", resultId });
   }
 
   return redirect(`/doctor/${patientId}`);
@@ -88,11 +95,36 @@ type Result = {
   [key: `item${number}`]: number | null; // item0, item1, ... などの動的なプロパティ
 };
 
+// 解析結果の型定義
+type AnalysisResult = {
+  id: number;
+  total_score: number;
+  severity: string;
+  interpretation: string;
+  details: {
+    item_scores: { [key: string]: number };
+    domain_analysis: {
+      [key: string]: {
+        items: string[];
+        score: number;
+        max_score: number;
+        severity: string;
+      }
+    }
+  }
+};
+
 export default function DoctorPatientPage() {
   const { results, patientId, stackedExams, availableExams } = useLoaderData<typeof loader>();
   const fetcher = useFetcher();
   const [localStackedExams, setLocalStackedExams] = useState<StackedExam[]>(stackedExams);
   const [localAvailableExams, setLocalAvailableExams] = useState<Exam[]>(availableExams);
+  const [analyzing, setAnalyzing] = useState<{ [key: number]: boolean }>({});
+  const [analysisResults, setAnalysisResults] = useState<{ [key: number]: AnalysisResult | null }>({});
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  
+  // FastAPIのURLを環境変数から取得
+  const FASTAPI_URL = "http://localhost:8000";
 
   // 検査削除処理
   const deleteStackedExam = (examId: number) => {
@@ -119,10 +151,44 @@ export default function DoctorPatientPage() {
       setLocalAvailableExams((prev) => prev.filter((exam) => exam.id !== examId));
     }
   };
+  
+  // 検査解析処理
+  const analyzeResult = async (resultId: number) => {
+    try {
+      // 解析中のフラグを設定
+      setAnalyzing(prev => ({ ...prev, [resultId]: true }));
+      setAnalysisError(null);
+      
+      // FastAPIサーバーに解析リクエストを送信
+      const response = await axios.post(`${FASTAPI_URL}/api/analyze/${resultId}`);
+      
+      if (response.data) {
+        // 解析結果を保存
+        setAnalysisResults(prev => ({
+          ...prev,
+          [resultId]: response.data
+        }));
+      }
+    } catch (error) {
+      console.error('解析エラー:', error);
+      setAnalysisError('解析処理中にエラーが発生しました。時間をおいて再度お試しください。');
+    } finally {
+      // 解析中フラグを解除
+      setAnalyzing(prev => ({ ...prev, [resultId]: false }));
+    }
+  };
 
   return (
     <div className="p-8">
       <h1 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">検査結果</h1>
+      
+      {/* エラーメッセージ表示 */}
+      {analysisError && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4" role="alert">
+          <span className="block sm:inline">{analysisError}</span>
+        </div>
+      )}
+      
       {results.length > 0 ? (
         <table className="w-full bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
           <thead>
@@ -130,20 +196,68 @@ export default function DoctorPatientPage() {
               <th className="p-2">検査名</th>
               <th className="p-2">スコア</th>
               <th className="p-2">日付</th>
+              <th className="p-2">操作</th>
             </tr>
           </thead>
           <tbody>
             {results.map((result) => (
-              <tr key={result.id} className="border-t border-gray-200 dark:border-gray-700">
-                <td className="p-2 text-gray-900 dark:text-gray-100">{result.exam.examname}</td>
-                <td className="p-2 text-gray-900 dark:text-gray-100">
-                  {Array.from({ length: 10 }).map((_, i) => {
-                    const itemKey = `item${i}` as keyof typeof result;
-                    return result[itemKey] !== null ? result[itemKey] : "N/A";
-                  }).join(", ")}
-                </td>
-                <td className="p-2 text-gray-900 dark:text-gray-100">{new Date(result.createdAt).toLocaleDateString()}</td>
-              </tr>
+              <>
+                <tr key={`result-${result.id}`} className="border-t border-gray-200 dark:border-gray-700">
+                  <td className="p-2 text-gray-900 dark:text-gray-100">{result.exam.examname}</td>
+                  <td className="p-2 text-gray-900 dark:text-gray-100">
+                    {Array.from({ length: 10 }).map((_, i) => {
+                      const itemKey = `item${i}` as keyof typeof result;
+                      return result[itemKey] !== null ? result[itemKey] : "N/A";
+                    }).join(", ")}
+                  </td>
+                  <td className="p-2 text-gray-900 dark:text-gray-100">{new Date(result.createdAt).toLocaleDateString()}</td>
+                  <td className="p-2">
+                    <button
+                      onClick={() => analyzeResult(result.id)}
+                      disabled={analyzing[result.id]}
+                      className="bg-blue-500 hover:bg-blue-600 dark:bg-blue-700 dark:hover:bg-blue-800 text-white px-4 py-2 rounded disabled:bg-gray-400"
+                    >
+                      {analyzing[result.id] ? "解析中..." : "解析"}
+                    </button>
+                  </td>
+                </tr>
+                
+                {/* 解析結果の表示 */}
+                {analysisResults[result.id] && (
+                  <tr key={`analysis-${result.id}`} className="bg-gray-100 dark:bg-gray-900">
+                    <td colSpan={4} className="p-4">
+                      <div className="bg-white dark:bg-gray-800 p-4 rounded shadow-inner">
+                        <h3 className="font-bold text-lg mb-2 text-gray-900 dark:text-white">解析結果</h3>
+                        <div className="mb-2">
+                          <span className="font-semibold">総合スコア: </span>
+                          <span>{analysisResults[result.id]!.total_score}</span>
+                        </div>
+                        <div className="mb-2">
+                          <span className="font-semibold">重症度: </span>
+                          <span>{analysisResults[result.id]!.severity}</span>
+                        </div>
+                        <div className="mb-4">
+                          <span className="font-semibold">解釈: </span>
+                          <p className="mt-1">{analysisResults[result.id]!.interpretation}</p>
+                        </div>
+                        
+                        <div>
+                          <h4 className="font-semibold mb-2">領域別分析:</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {Object.entries(analysisResults[result.id]!.details.domain_analysis).map(([domain, data]) => (
+                              <div key={domain} className="border rounded p-3 dark:border-gray-700">
+                                <h5 className="font-semibold">{domain}</h5>
+                                <div>スコア: {data.score}/{data.max_score}</div>
+                                <div>重症度: {data.severity}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </>
             ))}
           </tbody>
         </table>
