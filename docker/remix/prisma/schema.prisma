@@ -28,10 +28,36 @@ model Exam {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  stackedExams StackedExam[]
-  results      Result[]
+  stackedExams  StackedExam[]
+  results       Result[]
+  examSetItems  ExamSetItem[]
 
   @@map("exams")
+}
+
+model ExamSet {
+  id          Int           @id @default(autoincrement())
+  name        String        @unique @db.VarChar(255)
+  description String?       @db.VarChar(1000)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  
+  examSetItems ExamSetItem[]
+
+  @@map("exam_sets")
+}
+
+model ExamSetItem {
+  id        Int      @id @default(autoincrement())
+  examSet   ExamSet  @relation(fields: [examSetId], references: [id], onDelete: Cascade)
+  examSetId Int      @map("exam_set_id")
+  exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  examId    Int      @map("exam_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@unique([examSetId, examId])
+  @@map("exam_set_items")
 }
 
 model StackedExam {

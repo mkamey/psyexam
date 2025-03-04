@@ -114,6 +114,12 @@ export default function Index() {
                   検査項目の管理
                 </a>
                 <a
+                  href="/edit_exam_sets"
+                  className="block w-full text-center bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-300"
+                >
+                  心理検査セットの管理
+                </a>
+                <a
                   href="/edit_patients"
                   className="block w-full text-center bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-300"
                 >

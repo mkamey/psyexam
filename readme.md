@@ -34,6 +34,108 @@ docker-compose up -d
 
 ## 開発状況
 
+### 2025/3/5 - 心理検査セット機能の実装
+#### 改善内容
+1. 心理検査セット機能の追加
+   - 複数の検査をセットとしてグループ化する機能の実装
+   - 「抑うつ経過」などの検査セットを一括で患者に割り当て可能に
+   - 検査セットの作成・編集・削除機能の提供
+
+2. データモデルの拡張
+   - ExamSet(検査セット)モデルの追加
+   - ExamSetItem(検査セット項目)モデルの追加
+   - 既存の検査機能との統合
+
+3. UI/UX改善
+   - 検査セット管理画面の実装
+   - 医師の患者検査管理画面に検査セット選択機能を追加
+   - 検査セットの内容を視覚的に表示
+
+#### 修正理由
+- 頻繁に一緒に使用される検査を効率的に選択できる仕組みが必要だった
+- 医師の作業効率向上と操作ミスの低減
+- 類似の検査パターンの標準化と再利用性の向上
+
+#### 技術的な詳細
+1. Prismaスキーマへの検査セットモデル追加
+```prisma
+model ExamSet {
+  id          Int           @id @default(autoincrement())
+  name        String        @unique @db.VarChar(255)
+  description String?       @db.VarChar(1000)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  
+  examSetItems ExamSetItem[]
+
+  @@map("exam_sets")
+}
+
+model ExamSetItem {
+  id        Int      @id @default(autoincrement())
+  examSet   ExamSet  @relation(fields: [examSetId], references: [id], onDelete: Cascade)
+  examSetId Int      @map("exam_set_id")
+  exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  examId    Int      @map("exam_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@unique([examSetId, examId])
+  @@map("exam_set_items")
+}
+```
+
+2. 患者検査管理画面での検査セット使用機能
+```jsx
+{/* 検査セットから追加 */}
+<section className="mb-8 mt-8">
+  <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">検査セットから追加</h2>
+  {examSets && examSets.length > 0 ? (
+    <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md">
+      <div className="mb-4">
+        <label htmlFor="examSetSelect" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          検査セットを選択
+        </label>
+        <div className="flex gap-4 items-end">
+          <select
+            id="examSetSelect"
+            value={selectedExamSetId || ""}
+            onChange={(e) => setSelectedExamSetId(e.target.value ? Number(e.target.value) : null)}
+            className="border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white flex-grow">
+            <option value="">-- 検査セットを選択 --</option>
+            {examSets.map((set) => (
+              <option key={set.id} value={set.id}>
+                {set.name} ({set.examSetItems.length}件の検査)
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={() => {
+              if (selectedExamSetId) {
+                fetcher.submit(
+                  {
+                    patientId: patientId.toString(),
+                    examSetId: selectedExamSetId.toString(),
+                    actionType: "addFromExamSet"
+                  },
+                  { method: "POST" }
+                );
+                setSelectedExamSetId(null);
+              }
+            }}
+            disabled={!selectedExamSetId}
+            className="bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 text-white px-4 py-2 rounded">
+            検査セットを追加
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : (
+    <p className="text-gray-500">検査セットがありません</p>
+  )}
+</section>
+```
+
 ### 2025/3/4 - 検査結果のグラフ表示機能強化
 #### 改善内容
 1. 結果表示の視覚化を強化

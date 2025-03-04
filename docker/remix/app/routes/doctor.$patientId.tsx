@@ -31,7 +31,18 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
     (exam) => !stackedExams.some((se) => se.examId === exam.id)
   );
 
-  return json({ results, patientId, stackedExams, availableExams });
+  // 検査セットを取得
+  const examSets = await prisma.examSet.findMany({
+    include: {
+      examSetItems: {
+        include: {
+          exam: true
+        }
+      }
+    }
+  });
+
+  return json({ results, patientId, stackedExams, availableExams, examSets });
 };
 
 // Action: 削除・追加処理
@@ -44,8 +55,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const examId = Number(formData.get("examId"));
   const actionType = formData.get("actionType");
   const resultId = formData.get("resultId") ? Number(formData.get("resultId")) : null;
+  const examSetId = formData.get("examSetId") ? Number(formData.get("examSetId")) : null;
 
-  if (!patientId || (!examId && actionType !== "analyze")) {
+  if (!patientId || ((!examId && actionType !== "analyze" && actionType !== "addFromExamSet"))) {
     return json({ error: "Invalid data" }, { status: 400 });
   }
 
@@ -64,6 +76,34 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         data: { patientId, examId },
       });
     }
+    return redirect(`/doctor/${patientId}`);
+  } else if (actionType === "addFromExamSet" && examSetId) {
+    // 検査セットから複数の検査を一括追加
+    const examSetItems = await prisma.examSetItem.findMany({
+      where: { examSetId },
+      include: { exam: true }
+    });
+
+    // 患者の既存の検査を取得
+    const existingExams = await prisma.stackedExam.findMany({
+      where: { patientId },
+      select: { examId: true }
+    });
+    
+    const existingExamIds = existingExams.map(item => item.examId);
+    
+    // 重複しない検査を追加
+    for (const item of examSetItems) {
+      if (!existingExamIds.includes(item.examId)) {
+        await prisma.stackedExam.create({
+          data: {
+            patientId,
+            examId: item.examId
+          }
+        });
+      }
+    }
+    
     return redirect(`/doctor/${patientId}`);
   } else if (actionType === "analyze" && resultId) {
     // 解析処理は別途クライアントサイドで行う
@@ -373,7 +413,7 @@ const TimeSeriesChart = ({
 };
 
 export default function DoctorPatientPage() {
-  const { results, patientId, stackedExams, availableExams } = useLoaderData<typeof loader>();
+  const { results, patientId, stackedExams, availableExams, examSets } = useLoaderData<typeof loader>();
   const fetcher = useFetcher();
   const [localStackedExams, setLocalStackedExams] = useState<StackedExam[]>(stackedExams);
   const [localAvailableExams, setLocalAvailableExams] = useState<Exam[]>(availableExams);
@@ -382,6 +422,7 @@ export default function DoctorPatientPage() {
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [examResultsMap, setExamResultsMap] = useState<{ [examId: number]: Result[] }>({});
   const [timeSeriesData, setTimeSeriesData] = useState<{ [examId: number]: { date: string; totalScore: number }[] }>({});
+  const [selectedExamSetId, setSelectedExamSetId] = useState<number | null>(null);
   
   // FastAPIのURLを環境変数から取得(ブラウザからのアクセス用)
   const FASTAPI_URL = "http://localhost:8110";
@@ -690,6 +731,83 @@ export default function DoctorPatientPage() {
           </table>
         ) : (
           <p className="text-gray-500 dark:text-gray-400">予定されている検査がありません</p>
+        )}
+      </section>
+
+      {/* 検査セットから追加 */}
+      <section className="mb-8 mt-8">
+        <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">検査セットから追加</h2>
+        {examSets && examSets.length > 0 ? (
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md">
+            <div className="mb-4">
+              <label htmlFor="examSetSelect" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                検査セットを選択
+              </label>
+              <div className="flex gap-4 items-end">
+                <select
+                  id="examSetSelect"
+                  value={selectedExamSetId || ""}
+                  onChange={(e) => setSelectedExamSetId(e.target.value ? Number(e.target.value) : null)}
+                  className="border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white flex-grow focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-300"
+                >
+                  <option value="">-- 検査セットを選択 --</option>
+                  {examSets.map((set) => (
+                    <option key={set.id} value={set.id}>
+                      {set.name} ({set.examSetItems.length}件の検査)
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => {
+                    if (selectedExamSetId) {
+                      fetcher.submit(
+                        {
+                          patientId: patientId.toString(),
+                          examSetId: selectedExamSetId.toString(),
+                          actionType: "addFromExamSet"
+                        },
+                        { method: "POST" }
+                      );
+                      // 選択をリセット
+                      setSelectedExamSetId(null);
+                    } else {
+                      alert("検査セットを選択してください");
+                    }
+                  }}
+                  disabled={!selectedExamSetId}
+                  className="bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 text-white px-4 py-2 rounded disabled:bg-gray-400 dark:disabled:bg-gray-600 transition-colors duration-300"
+                >
+                  検査セットを追加
+                </button>
+              </div>
+            </div>
+            
+            {selectedExamSetId && (
+              <div className="mt-4">
+                <h3 className="text-md font-medium mb-2 text-gray-800 dark:text-gray-200">
+                  含まれる検査:
+                </h3>
+                <ul className="list-disc pl-5 text-gray-700 dark:text-gray-300">
+                  {examSets.find(set => set.id === selectedExamSetId)?.examSetItems.map(item => (
+                    <li key={item.id}>{item.exam.examname}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            
+            <div className="mt-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                ※ 検査セットを編集するには <a href="/edit_exam_sets" className="text-blue-600 dark:text-blue-400 hover:underline">こちら</a>
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col items-start gap-2">
+            <p className="text-gray-500 dark:text-gray-400">検査セットがありません</p>
+            <a href="/edit_exam_sets" className="text-blue-600 dark:text-blue-400 hover:underline">
+              検査セット管理ページで検査セットを作成する
+            </a>
+          </div>
         )}
       </section>
 
