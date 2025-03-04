@@ -2,7 +2,7 @@ import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs } from
 import { useLoaderData, useFetcher } from "@remix-run/react";
 import { prisma } from "../../utils/db.server";
 import { requireApprovedUser } from "../../utils/session.server";
-import { useState } from "react";
+import React, { useState } from "react";
 import axios from "axios";
 
 // Loader: データ取得
@@ -201,14 +201,21 @@ export default function DoctorPatientPage() {
           </thead>
           <tbody>
             {results.map((result) => (
-              <>
-                <tr key={`result-${result.id}`} className="border-t border-gray-200 dark:border-gray-700">
+              <React.Fragment key={`result-group-${result.id}`}>
+                <tr className="border-t border-gray-200 dark:border-gray-700">
                   <td className="p-2 text-gray-900 dark:text-gray-100">{result.exam.examname}</td>
                   <td className="p-2 text-gray-900 dark:text-gray-100">
-                    {Array.from({ length: 10 }).map((_, i) => {
-                      const itemKey = `item${i}` as keyof typeof result;
-                      return result[itemKey] !== null ? result[itemKey] : "N/A";
-                    }).join(", ")}
+                    <div className="flex gap-1 flex-wrap">
+                      {Array.from({ length: 10 }).map((_, i) => {
+                        const itemKey = `item${i}` as keyof typeof result;
+                        const value = result[itemKey] !== null ? String(result[itemKey]) : "N/A";
+                        return (
+                          <span key={`item-${result.id}-${i}`}>
+                            {value}{i < 9 ? ", " : ""}
+                          </span>
+                        );
+                      })}
+                    </div>
                   </td>
                   <td className="p-2 text-gray-900 dark:text-gray-100">{new Date(result.createdAt).toLocaleDateString()}</td>
                   <td className="p-2">
@@ -257,7 +264,7 @@ export default function DoctorPatientPage() {
                     </td>
                   </tr>
                 )}
-              </>
+              </React.Fragment>
             ))}
           </tbody>
         </table>

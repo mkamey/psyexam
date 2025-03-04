@@ -17,15 +17,16 @@
     "@remix-run/node": "^2.16.0",
     "@remix-run/react": "^2.16.0",
     "@remix-run/serve": "^2.16.0",
+    "@types/bcryptjs": "^2.4.6",
     "axios": "^1.6.8",
     "bcryptjs": "^2.4.3",
-    "@types/bcryptjs": "^2.4.6",
     "isbot": "^4.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
     "@remix-run/dev": "^2.16.0",
+    "@types/axios": "^0.9.36",
     "@types/react": "^18.2.20",
     "@types/react-dom": "^18.2.7",
     "@typescript-eslint/eslint-plugin": "^6.7.4",
