@@ -34,6 +34,63 @@ docker-compose up -d
 
 ## 開発状況
 
+### 2025/3/5 - 管理者アカウントの再作成
+
+#### 改善内容
+1. データベース再構築後に削除された管理者アカウントを再作成
+   - create-admin.sqlスクリプトによる管理者ユーザーの作成
+   - update-password.jsによるパスワードハッシュの生成
+   - update-admin.sqlによるパスワード更新
+
+2. 認証関連の問題解決
+   - パスワードハッシュのフォーマット違い(`$2a$`と`$2b$`)の修正
+   - bcryptjsのバージョンによる互換性問題の解決
+
+#### 修正理由
+- データベース再構築によって管理者アカウントが削除された
+- システムへのログインができなくなり、管理機能にアクセスできない状態だった
+- セキュアなパスワード管理を維持しながら管理者アカウントを復旧する必要があった
+
+#### 技術的な詳細
+1. 管理者アカウント作成用のSQLスクリプト
+```sql
+-- adminユーザーが存在しない場合は作成
+INSERT INTO users (username, email, full_name, password, role, is_approved, created_at, updated_at)
+SELECT 'admin', 'admin@example.com', '管理者', '$2a$10$K0hyQ9BkYVhVcD0iO5XrGOQ1PfC3hD6QJm1uSvl6NbOQb.0za8Ttu', 'admin', true, NOW(), NOW()
+FROM dual
+WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'admin');
+```
+
+2. 新しいパスワードハッシュの生成と適用
+```javascript
+// update-password.js
+const bcrypt = require('bcryptjs');
+
+async function generateHash() {
+  const password = 'admin123';
+  const hash = await bcrypt.hash(password, 10);
+  console.log(`パスワード '${password}' のハッシュ:`, hash);
+  
+  // SQLコマンドを生成
+  console.log('\nSQLコマンド:');
+  console.log(`UPDATE users SET password = '${hash}' WHERE username = 'admin';`);
+}
+
+generateHash().catch(console.error);
+```
+
+3. 管理者アカウントの復旧手順
+```bash
+# 新しいハッシュを生成
+node update-password.js
+
+# 生成されたハッシュを使ってSQLを作成
+echo "UPDATE users SET password = '生成されたハッシュ' WHERE username = 'admin';" > update-admin.sql
+
+# MySQLコンテナでSQLを実行
+docker exec -i mysql-container mysql -uroot -pp0ssw0rd psyexam < update-admin.sql
+```
+
 ### 2025/3/5 - 心理検査セット機能の実装
 #### 改善内容
 1. 心理検査セット機能の追加
