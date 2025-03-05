@@ -234,8 +234,8 @@ export default function EditExamSetsPage() {
             {examSets.map((examSet) => (
               <div key={examSet.id} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
                 {/* 検査セットヘッダー */}
-                <div 
-                  className="bg-gray-100 dark:bg-gray-750 p-4 flex justify-between items-center cursor-pointer"
+                <div
+                  className="bg-gray-100 dark:bg-gray-700 p-4 flex justify-between items-center cursor-pointer"
                   onClick={() => toggleExpand(examSet.id)}
                 >
                   <div>

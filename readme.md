@@ -320,6 +320,33 @@ environment:
 const FASTAPI_URL = "http://localhost:8110";  // ブラウザからのアクセス用
 ```
 
+### 2025/3/5 - ダークモード機能の追加改善
+
+#### 改善内容
+1. `edit_exam_sets.tsx`のダークモード対応を修正
+   - 検査セット一覧のヘッダー部分のダークモード対応を改善
+   - `dark:bg-gray-750`クラスを標準のTailwindクラス`dark:bg-gray-700`に変更
+   - セレクタ`body > div.min-h-screen.bg-gray-50.dark\:bg-gray-900 > div > div:nth-child(3) > div > div`の表示を修正
+
+#### 修正理由
+- 一部のUIコンポーネントでダークモード切替時に背景色が適切に変更されない問題があった
+- 非標準のTailwindカラークラスを標準クラスに置き換えることで一貫性を向上
+
+#### 技術的な詳細
+```jsx
+// 修正前
+<div
+  className="bg-gray-100 dark:bg-gray-750 p-4 flex justify-between items-center cursor-pointer"
+  onClick={() => toggleExpand(examSet.id)}
+>
+
+// 修正後
+<div
+  className="bg-gray-100 dark:bg-gray-700 p-4 flex justify-between items-center cursor-pointer"
+  onClick={() => toggleExpand(examSet.id)}
+>
+```
+
 ### 2025/3/3 - ダークモード機能の改善とバグ修正
 
 [... 以前の開発記録は変更なし ...]
