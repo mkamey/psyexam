@@ -34,6 +34,46 @@ docker-compose up -d
 
 ## 開発状況
 
+### 2025/3/5 - メニューバーロゴのリンク先改善
+
+#### 改善内容
+1. ヘッダーロゴのクリック時の遷移先を画面タイプによって変更
+   - 患者画面: トップページ (`http://localhost:3010`) に遷移
+   - 管理画面: 医師用ダッシュボード (`http://localhost:3010/index_doctor`) に遷移
+
+2. Remixの`Link`コンポーネントを使用し、クライアントサイドルーティングを適用
+   - ページ全体のリロードを避け、スムーズな遷移を実現
+   - 現在のURL情報を使用して適切なリンク先を動的に決定
+
+#### 修正理由
+- ユーザー体験の向上：ヘッダーロゴからユーザーの現在のロールに適したページへ移動できるようにする
+- ナビゲーション効率の改善：患者と医師それぞれに最適な画面遷移を提供
+
+#### 技術的な詳細
+```tsx
+// URLパスに基づいてリンク先を決定
+// /doctorまたは/index_doctorで始まるパスは管理画面と判断
+const isDoctor = location.pathname.startsWith('/doctor') || location.pathname.startsWith('/index_doctor');
+const linkDestination = isDoctor ? "/index_doctor" : "/";
+
+console.log(`現在のパス: ${location.pathname}, リンク先: ${linkDestination}`);
+
+// Remixの<Link>コンポーネントを使用したロゴのリンク実装
+<Link to={linkDestination} className="cursor-pointer">
+  <img
+    className="h-10 w-auto hidden dark:block"
+    src="/logo-dark.png"
+    alt="ロゴ (ダークモード)"
+  />
+  <img
+    className="h-10 w-auto block dark:hidden"
+    src="/logo-light.png"
+    alt="ロゴ (ライトモード)"
+  />
+</Link>
+```
+
+
 ### 2025/3/5 - 管理者アカウントの再作成
 
 #### 改善内容
@@ -318,6 +358,142 @@ environment:
 2. フロントエンドのAPI URL設定
 ```typescript
 const FASTAPI_URL = "http://localhost:8110";  // ブラウザからのアクセス用
+```
+
+### 2025/3/5 - CORSの問題解決とAPIリクエスト修正
+
+#### 改善内容
+1. FastAPIのCORS設定を修正
+   - 重複していたFastAPIアプリケーションの初期化部分を統合
+   - CORSミドルウェアの設定をより明示的に設定
+   - `allow_origins`に正しくオリジンを設定
+
+2. クライアント側のAPIリクエスト処理を改善
+   - デバッグログを追加して問題を診断できるように修正
+   - エラー処理の強化とより詳細なエラーメッセージの表示
+   - コンテンツタイプヘッダーを明示的に設定
+
+#### 修正理由
+- ブラウザからのAPIリクエスト時にCORSエラーが発生する問題があった
+- `Access-Control-Allow-Origin`ヘッダーが適切に設定されていなかった
+- FastAPIアプリケーションの初期化が重複していたため、CORS設定が正しく適用されなかった
+
+#### 技術的な詳細
+1. FastAPIの初期化と設定の統合
+```python
+# 修正前(問題があった状態): 二重初期化
+app = FastAPI(
+    title="心理検査解析API",
+    description="様々な心理検査の結果を解析するためのAPIサーバー",
+    version="1.0.0"
+)
+
+# CORS設定 - 1回目(無効)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3010", "http://localhost:8110"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# 中略...
+
+# FastAPIアプリケーションの初期化 - 2回目
+app = FastAPI(
+    title="心理検査解析API",
+    description="様々な心理検査の結果を解析するためのAPIサーバー",
+    version="1.0.0"
+)
+
+# CORS設定 - 2回目
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3010", "http://localhost:8110"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# 修正後: 初期化を1回に統合
+app = FastAPI(
+    title="心理検査解析API",
+    description="様々な心理検査の結果を解析するためのAPIサーバー",
+    version="1.0.0"
+)
+
+# CORS設定 - オリジンに明示的に重複も含めて設定
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3010", "http://localhost:8110", "http://localhost:3010"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+```
+
+2. クライアント側のAPIリクエスト処理の改善
+```typescript
+// 修正前
+const analyzeResult = async (resultId: number) => {
+  try {
+    setAnalyzing(prev => ({ ...prev, [resultId]: true }));
+    setAnalysisError(null);
+    
+    const response = await axios.post(`${FASTAPI_URL}/api/analyze/${resultId}`);
+    
+    if (response.data) {
+      setAnalysisResults(prev => ({
+        ...prev,
+        [resultId]: response.data
+      }));
+    }
+  } catch (error) {
+    console.error('解析エラー:', error);
+    setAnalysisError('解析処理中にエラーが発生しました。時間をおいて再度お試しください。');
+  } finally {
+    setAnalyzing(prev => ({ ...prev, [resultId]: false }));
+  }
+};
+
+// 修正後
+const analyzeResult = async (resultId: number) => {
+  try {
+    setAnalyzing(prev => ({ ...prev, [resultId]: true }));
+    setAnalysisError(null);
+    
+    // デバッグ情報を追加
+    console.log(`解析リクエスト送信: ${FASTAPI_URL}/api/analyze/${resultId}`);
+    
+    // ヘッダー設定を明示的に行う
+    const response = await axios.post(`${FASTAPI_URL}/api/analyze/${resultId}`, {}, {
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    });
+    
+    console.log('解析レスポンス受信:', response.data);
+    
+    if (response.data) {
+      setAnalysisResults(prev => ({
+        ...prev,
+        [resultId]: response.data
+      }));
+    }
+  } catch (error: any) {
+    console.error('解析エラー:', error);
+    if (axios.isAxiosError(error)) {
+      console.error('Axiosエラー詳細:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+    }
+    setAnalysisError(`解析処理中にエラーが発生しました: ${error.message}`);
+  } finally {
+    setAnalyzing(prev => ({ ...prev, [resultId]: false }));
+  }
+};
 ```
 
 ### 2025/3/5 - ダークモード機能の追加改善

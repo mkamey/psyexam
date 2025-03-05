@@ -5,6 +5,7 @@ import {
   Scripts,
   ScrollRestoration,
   useLocation,
+  Link
 } from "@remix-run/react";
 import type { LinksFunction } from "@remix-run/node";
 import { useEffect } from "react";
@@ -46,20 +47,29 @@ function Header() {
     return null;
   }
   
+  // パスに基づいてリンク先を決定
+  // /doctorまたは/index_doctorで始まるパスは管理画面と判断
+  const isDoctor = location.pathname.startsWith('/doctor') || location.pathname.startsWith('/index_doctor');
+  const linkDestination = isDoctor ? "/index_doctor" : "/";
+  
+  console.log(`現在のパス: ${location.pathname}, リンク先: ${linkDestination}`);
+  
   return (
     <header className="sticky top-0 z-10 bg-white dark:bg-gray-800 shadow-md py-2 px-4">
       <div className="max-w-7xl mx-auto flex justify-between items-center">
         <div className="flex items-center">
-          <img
-            className="h-10 w-auto hidden dark:block"
-            src="/logo-dark.png"
-            alt="ロゴ (ダークモード)"
-          />
-          <img
-            className="h-10 w-auto block dark:hidden"
-            src="/logo-light.png"
-            alt="ロゴ (ライトモード)"
-          />
+          <Link to={linkDestination} className="cursor-pointer">
+            <img
+              className="h-10 w-auto hidden dark:block"
+              src="/logo-dark.png"
+              alt="ロゴ (ダークモード)"
+            />
+            <img
+              className="h-10 w-auto block dark:hidden"
+              src="/logo-light.png"
+              alt="ロゴ (ライトモード)"
+            />
+          </Link>
         </div>
         <ClientOnly>
           <DarkModeToggle className="ml-4" />
