@@ -73,9 +73,18 @@ export default defineConfig({
   
   // 解決設定
   resolve: {
+    // remix関連の仮想モジュールをサポートする設定
+    conditions: ["development", "browser"],
     alias: {
       // "remix:manifest"の解決問題を回避するためのダミーエイリアス
-      "remix:manifest": "/virtual-manifest.json",
+      "remix:manifest": "/@id/__x00__virtual:remix/manifest",
+    },
+  },
+  
+  // 仮想モジュールサポート
+  experimental: {
+    renderBuiltUrl(filename) {
+      return filename;
     },
   },
 });

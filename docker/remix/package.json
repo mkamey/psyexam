@@ -10,7 +10,8 @@
     "start": "remix-serve ./build/server/index.js",
     "typecheck": "tsc",
     "seed": "node prisma/seed.js",
-    "db:reset": "npx prisma db push --force-reset && npm run seed"
+    "db:reset": "npx prisma db push --force-reset && npm run seed",
+    "create-admin": "node create-admin.js"
   },
   "dependencies": {
     "@prisma/client": "^6.4.1",

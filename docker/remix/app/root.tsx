@@ -1,3 +1,4 @@
+import { DebugInfo } from "./debug-info";
 import { useState, useEffect } from "react";
 import {
   Links,
@@ -94,6 +95,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <Header />
+        <DebugInfo />
         {children}
       </div>
     );
