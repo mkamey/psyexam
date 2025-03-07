@@ -34,6 +34,103 @@ docker-compose up -d
 
 ## 開発状況
 
+### 2025/3/7 - バックエンドとフロントエンドの統合に関する検討
+
+#### 検討内容
+1. バックエンド（FastAPI）とフロントエンド（Remix）を一つのコンテナにまとめる可能性を検討
+   - 現在のCORS設定の問題を解決するための方法として評価
+   - 技術的な実現可能性と長所・短所を分析
+
+2. 統合アプローチの検討
+   - マルチステージビルドを使用したカスタムイメージの作成
+   - Supervisorなどのプロセス管理ツールを使用した複数サービスの管理
+
+3. 代替案の検討
+   - Nginxなどのリバースプロキシを使用したアプローチ
+   - 既存のコンテナ構造を維持しながらCORS問題を解決する方法
+
+#### 技術的な詳細
+1. 統合コンテナのDockerfile案
+```dockerfile
+# ベースイメージとしてPythonを使用
+FROM python:3.11-slim
+
+# Node.jsをインストール
+RUN apt-get update && apt-get install -y \
+    curl \
+    gnupg \
+    && curl -sL https://deb.nodesource.com/setup_current.x | bash - \
+    && apt-get install -y nodejs \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# 作業ディレクトリを設定
+WORKDIR /app
+
+# FastAPI用の依存関係をインストール
+COPY fastapi/requirements.txt /app/fastapi/
+RUN pip install --no-cache-dir -r /app/fastapi/requirements.txt
+
+# Remix用の依存関係をインストール
+COPY docker/remix/package.json /app/remix/
+WORKDIR /app/remix
+RUN npm install
+
+# アプリケーションコードをコピー
+COPY fastapi/app /app/fastapi/app
+COPY docker/remix /app/remix
+
+# Supervisorをインストールして設定
+RUN apt-get update && apt-get install -y supervisor
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# ポートを公開
+EXPOSE 3000 8000
+
+# Supervisorを使用して両方のサービスを起動
+CMD ["/usr/bin/supervisord"]
+```
+
+2. Supervisorの設定例
+```ini
+[supervisord]
+nodaemon=true
+
+[program:fastapi]
+command=uvicorn fastapi.app.main:app --host 0.0.0.0 --port 8000 --reload
+directory=/app
+autostart=true
+autorestart=true
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+
+[program:remix]
+command=npm run dev
+directory=/app/remix
+autostart=true
+autorestart=true
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+```
+
+#### 統合のメリット
+- CORS問題の解消：同一オリジンからのリクエストになるため設定が不要
+- 設定の簡素化：環境変数やコンテナ間通信の設定が簡略化
+- リソースの効率化：コンテナ数の削減によるシステムリソースの最適化
+
+#### 統合のデメリット
+- イメージサイズの増大：複数の実行環境を含むため肥大化
+- 依存関係の複雑化：異なる言語の依存関係管理が複雑に
+- スケーリングの制限：個別のスケーリングが困難
+- メンテナンスの複雑化：デバッグや問題解決が複雑になる
+
+#### 推奨アプローチ
+技術的には統合可能だが、長期的な保守性とスケーラビリティを考慮すると、Nginxなどのリバースプロキシを使用して、別々のコンテナを維持しながらCORS問題を解決する方法が推奨される。
+
 ### 2025/3/6 - 検査セットからの検査項目追加機能の改善
 
 #### 改善内容
@@ -615,6 +712,65 @@ const analyzeResult = async (resultId: number) => {
 
 ### 2025/3/3 - ダークモード機能の改善とバグ修正
 
+### 2025/3/7 - Reactコンテキストとセッション管理の修正
+
+#### 改善内容
+1. Reactコンテキストの提供方法を修正
+   - root.tsxからDarkModeProviderを削除し、重複を解消
+   - entry.server.tsxにDarkModeProviderを追加し、サーバーサイドレンダリング時のコンテキスト提供を確保
+   - entry.client.tsxの既存のDarkModeProvider設定を維持
+
+2. セッション管理の改善
+   - Cookie設定をDocker環境に対応するよう修正
+   - COOKIE_DOMAIN環境変数を追加し、柔軟な設定を可能に
+   - セッション関連の関数にデバッグログを追加
+
+#### 修正理由
+- Synology Dockerでのビルド時に「Cannot read properties of null (reading 'useContext')」エラーが発生
+- セッション管理がDocker環境で正しく機能していなかった
+- 環境に依存しない柔軟なCookie設定が必要だった
+
+#### 技術的な詳細
+1. Reactコンテキスト修正
+```tsx
+// root.tsxの修正
+// 修正前: DarkModeProviderが重複
+<DarkModeProvider>
+  <AppLayout>
+    <Outlet />
+  </AppLayout>
+</DarkModeProvider>
+
+// 修正後: 重複を解消
+<AppLayout>
+  <Outlet />
+</AppLayout>
+
+// entry.server.tsxの修正
+// RemixServerをDarkModeProviderでラップ
+<DarkModeProvider>
+  <RemixServer
+    context={remixContext}
+    url={request.url}
+    abortDelay={ABORT_DELAY}
+  />
+</DarkModeProvider>
+```
+
+2. セッション管理の改善
+```typescript
+// 修正前: 固定ドメイン設定
+domain: process.env.NODE_ENV === "production" ? undefined : "localhost",
+
+// 修正後: 環境変数による柔軟な設定
+domain: process.env.COOKIE_DOMAIN || undefined,
+```
+
+#### デプロイ時の注意点
+- .envファイルにCOOKIE_DOMAINを設定する
+- 本番環境では適切なドメイン設定が必要
+- デバッグログを確認してセッション管理の問題を診断可能
+
 ### 2025/3/7 - デプロイ準備の改善
 
 #### 改善内容
@@ -661,32 +817,3 @@ const analyzeResult = async (resultId: number) => {
    cp docker/remix/.env.example docker/remix/.env
    cp fastapi/.env.example fastapi/.env
 
-   # 2. 環境変数を本番環境用に編集
-
-   # 3. プロダクションビルドの実行
-   docker-compose -f docker-compose.prod.yml build
-
-   # 4. コンテナの起動
-   docker-compose -f docker-compose.prod.yml up -d
-   ```
-
-3. データベースのマイグレーション
-   ```bash
-   # Remixコンテナ内でPrismaマイグレーションを実行
-   docker exec -it remix-container npx prisma migrate deploy
-   ```
-
-4. 初期セットアップ
-   ```bash
-   # 管理者アカウントの作成（必要な場合）
-   docker exec -it remix-container node create-admin.js
-   ```
-
-#### セキュリティに関する注意点
-- 本番環境では必ず強力なパスワードを使用
-- SESSION_SECRETはユニークな値を設定
-- データベースのクレデンシャルは本番環境用に変更
-- DEBUG=Falseを確認
-- APIキーやシークレットは必ず環境変数として管理
-
-[... 以前の開発記録は変更なし ...]

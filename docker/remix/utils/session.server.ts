@@ -14,25 +14,54 @@ const sessionStorage = createCookieSessionStorage({
     path: "/",
     maxAge: 60 * 60 * 24 * 30, // 30日間
     httpOnly: true,
-    domain: process.env.NODE_ENV === "production" ? undefined : "localhost",
+    domain: process.env.COOKIE_DOMAIN || undefined,
   },
 });
 
 // ユーザーセッションの取得
 export async function getUserSession(request: Request) {
-  return sessionStorage.getSession(request.headers.get("Cookie"));
+  const cookie = request.headers.get("Cookie");
+  console.log(`[getUserSession] Cookie取得: ${cookie ? '存在します' : '存在しません'}`);
+  if (cookie) {
+    console.log(`[getUserSession] Cookie値: ${cookie.substring(0, 50)}...`);
+  }
+  
+  try {
+    const session = await sessionStorage.getSession(cookie);
+    console.log(`[getUserSession] セッション取得成功`);
+    return session;
+  } catch (error) {
+    console.error(`[getUserSession] セッション取得エラー:`, error);
+    throw error;
+  }
 }
 
 // ユーザーIDの取得
 export async function getUserId(request: Request) {
+  console.log(`[getUserId] リクエストからセッション取得開始`);
+  console.log(`[getUserId] Cookie: ${request.headers.get("Cookie")?.substring(0, 50)}...`);
+  
   const session = await getUserSession(request);
   try {
+    console.log(`[getUserId] セッション取得成功`);
     const userId = session.get("userId");
-    if (!userId) return null;
+    console.log(`[getUserId] セッションからuserIdを取得: ${userId}`);
+    
+    if (!userId) {
+      console.log(`[getUserId] userIdがnullまたは未定義`);
+      return null;
+    }
+    
     const parsedId = parseInt(userId, 10);
-    if (isNaN(parsedId)) return null;
+    if (isNaN(parsedId)) {
+      console.log(`[getUserId] userIdの数値変換に失敗: ${userId}`);
+      return null;
+    }
+    
+    console.log(`[getUserId] 有効なuserIdを返却: ${parsedId}`);
     return parsedId;
-  } catch {
+  } catch (error) {
+    console.error(`[getUserId] エラー発生:`, error);
     return null;
   }
 }
