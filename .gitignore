@@ -2,10 +2,26 @@
 **/node_modules/
 **/.cache/
 **/build/
+/public/build
+/.cache
+
+# Python環境
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+venv/
+.venv/
+.pytest_cache/
+.python-version
 
 # ローカル設定ファイル
 .env
-*.env.local
+.env.*
+!.env.example
+.env.local
+.env.*.local
+.env.production
 .env.development.local
 .env.test.local
 .env.production.local
@@ -17,6 +33,7 @@ Thumbs.db
 # ログファイル
 *.log
 logs/
+npm-debug.log*
 
 # デバッグファイル
 *.pid
@@ -25,6 +42,7 @@ logs/
 # エディタ/IDE
 .vscode/
 .idea/
+*.sublime-*
 
 # テスト関連
 coverage/
@@ -33,13 +51,18 @@ coverage/
 # Docker関連
 docker/db/data/
 
-# データベースマイグレーション
+# データベース関連
 docker/remix/prisma/migrations/
+*.db
+dev.db
+*.db-journal
 
 # ビルド成果物
 dist/
 out/
 *.tsbuildinfo
+.vercel
+.netlify
 
 # パッケージ管理
 *.tgz
@@ -51,12 +74,7 @@ yarn.lock
 # 著作権保護された試験データ
 docker/remix/exams/EDI-3.json
 
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-
 # その他
 *.swp
 *.swo
+.DS_Store

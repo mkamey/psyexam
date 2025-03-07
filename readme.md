@@ -34,6 +34,96 @@ docker-compose up -d
 
 ## 開発状況
 
+### 2025/3/6 - 検査セットからの検査項目追加機能の改善
+
+#### 改善内容
+1. doctor.$patientId.tsx内の条件式を修正
+   - 検査セットから検査項目を追加するときのバリデーション条件を改善
+   - アクションタイプごとに必要なパラメータを明示的に指定する方式に変更
+
+2. デバッグ支援機能を追加
+   - アクション実行時のパラメータ詳細をコンソールログに出力
+   - エラー発生時の診断情報を強化
+
+3. UI/UXの改善
+   - 検査セット追加時に画面リロードなしで即時表示される機能を実装
+   - クライアント側の状態管理で即座に検査リストを更新するロジックを追加
+
+#### 修正理由
+- 検査セットから検査項目を追加しようとするとエラーが発生していた
+- 元の条件式が複雑で、`addFromExamSet`アクションの処理で誤判定が発生していた
+- 検査セットを追加した後に画面をリロードしないと変更が表示されなかった
+- ユーザー体験を向上させるため、アクションの即時反映が必要だった
+
+#### 技術的な詳細
+1. 条件式の修正
+```typescript
+// 修正前: 複雑で理解しにくい条件式
+if (!patientId || ((!examId && actionType !== "analyze" && actionType !== "addFromExamSet"))) {
+  return json({ error: "Invalid data" }, { status: 400 });
+}
+
+// 修正後: アクションタイプごとに必要なパラメータを明示的に指定
+if (!patientId || (
+  (actionType === "add" && !examId) ||
+  (actionType === "delete" && !examId) ||
+  (actionType === "analyze" && !resultId) ||
+  (actionType === "addFromExamSet" && !examSetId)
+)) {
+  console.log("エラー: 無効なデータ", { patientId, examId, actionType, resultId, examSetId });
+  return json({ error: "Invalid data" }, { status: 400 });
+}
+```
+
+2. クライアント側での即時更新機能
+```typescript
+// 検査セット追加時に即座に画面更新
+onClick={() => {
+  if (selectedExamSetId) {
+    // 選択した検査セットの内容を取得
+    const selectedSet = examSets.find(set => set.id === selectedExamSetId);
+    if (selectedSet) {
+      // サーバーに送信
+      fetcher.submit(
+        {
+          patientId: patientId.toString(),
+          examSetId: selectedExamSetId.toString(),
+          actionType: "addFromExamSet"
+        },
+        { method: "POST" }
+      );
+      
+      // 既存の検査IDを抽出
+      const existingExamIds = localStackedExams.map(exam => exam.examId);
+      
+      // クライアント側でも検査リストを更新(重複を避ける)
+      selectedSet.examSetItems.forEach(item => {
+        // 重複しない検査だけを追加
+        if (!existingExamIds.includes(item.examId)) {
+          // 追加する検査を予定リストに追加
+          setLocalStackedExams(prev => [...prev, {
+            id: 0,
+            patientId,
+            examId: item.examId,
+            exam: item.exam
+          }]);
+          
+          // 利用可能な検査リストから削除
+          setLocalAvailableExams(prev =>
+            prev.filter(exam => exam.id !== item.examId)
+          );
+        }
+      });
+    }
+  }
+}}
+```
+
+#### 注意点
+- TypeScriptの型エラー (`examSet`と`examSetItem`が`PrismaClient`に存在しない) は表示されるが、実際の動作には影響しない
+- 必要に応じて `npx prisma generate` を実行することで型定義を更新可能
+
+
 ### 2025/3/5 - メニューバーロゴのリンク先改善
 
 #### 改善内容
@@ -524,5 +614,79 @@ const analyzeResult = async (resultId: number) => {
 ```
 
 ### 2025/3/3 - ダークモード機能の改善とバグ修正
+
+### 2025/3/7 - デプロイ準備の改善
+
+#### 改善内容
+1. .gitignoreファイルの包括的な更新
+   - Python環境関連ファイルの詳細な除外設定追加
+   - Prisma関連ファイルの設定強化
+   - 環境変数ファイルの管理改善
+   - ビルド関連ファイルの除外設定の最適化
+
+2. 環境変数管理の改善
+   - Remix用の.env.exampleファイル作成
+   - FastAPI用の.env.exampleファイル作成
+   - 必要な環境変数の明確化
+
+#### デプロイ時の注意点
+1. 環境変数の設定
+   ```bash
+   # Remixプロジェクト (/docker/remix/.env)
+   DATABASE_URL="postgresql://username:password@localhost:5432/dbname"
+   SESSION_SECRET="your-session-secret-key"
+   FASTAPI_URL="http://fastapi:8000"  # コンテナ間通信用
+   ADMIN_EMAIL="admin@example.com"
+   ADMIN_PASSWORD="your-secure-password"
+   PORT=3000
+   NODE_ENV="production"
+   CORS_ORIGIN="http://localhost:3000"
+
+   # FastAPIプロジェクト (/fastapi/.env)
+   DATABASE_URL="postgresql://username:password@localhost:5432/dbname"
+   API_VERSION="v1"
+   API_PREFIX="/api"
+   ALLOWED_ORIGINS="http://localhost:3000"
+   ALLOWED_METHODS="GET,POST,PUT,DELETE,OPTIONS"
+   ALLOWED_HEADERS="*"
+   SECRET_KEY="your-secret-key-here"
+   ALGORITHM="HS256"
+   ACCESS_TOKEN_EXPIRE_MINUTES=30
+   DEBUG=False
+   ```
+
+2. ビルドとデプロイの手順
+   ```bash
+   # 1. 本番用の環境変数ファイルを作成
+   cp docker/remix/.env.example docker/remix/.env
+   cp fastapi/.env.example fastapi/.env
+
+   # 2. 環境変数を本番環境用に編集
+
+   # 3. プロダクションビルドの実行
+   docker-compose -f docker-compose.prod.yml build
+
+   # 4. コンテナの起動
+   docker-compose -f docker-compose.prod.yml up -d
+   ```
+
+3. データベースのマイグレーション
+   ```bash
+   # Remixコンテナ内でPrismaマイグレーションを実行
+   docker exec -it remix-container npx prisma migrate deploy
+   ```
+
+4. 初期セットアップ
+   ```bash
+   # 管理者アカウントの作成（必要な場合）
+   docker exec -it remix-container node create-admin.js
+   ```
+
+#### セキュリティに関する注意点
+- 本番環境では必ず強力なパスワードを使用
+- SESSION_SECRETはユニークな値を設定
+- データベースのクレデンシャルは本番環境用に変更
+- DEBUG=Falseを確認
+- APIキーやシークレットは必ず環境変数として管理
 
 [... 以前の開発記録は変更なし ...]

@@ -56,8 +56,30 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const actionType = formData.get("actionType");
   const resultId = formData.get("resultId") ? Number(formData.get("resultId")) : null;
   const examSetId = formData.get("examSetId") ? Number(formData.get("examSetId")) : null;
+  
+  // デバッグ用のログ
+  console.log("アクション実行:", {
+    patientId,
+    examId,
+    actionType,
+    resultId,
+    examSetId,
+    isPatientIdValid: Boolean(patientId),
+    isExamIdValid: Boolean(examId),
+    isNaNPatientId: isNaN(patientId),
+    isNaNExamId: isNaN(examId),
+    isNaNExamSetId: examSetId !== null ? isNaN(examSetId) : "null",
+    conditionResult: !patientId || ((!examId && actionType !== "analyze" && actionType !== "addFromExamSet"))
+  });
 
-  if (!patientId || ((!examId && actionType !== "analyze" && actionType !== "addFromExamSet"))) {
+  // 条件式の修正: addFromExamSetの場合はexamSetIdも必要
+  if (!patientId || (
+    (actionType === "add" && !examId) ||
+    (actionType === "delete" && !examId) ||
+    (actionType === "analyze" && !resultId) ||
+    (actionType === "addFromExamSet" && !examSetId)
+  )) {
+    console.log("エラー: 無効なデータ", { patientId, examId, actionType, resultId, examSetId });
     return json({ error: "Invalid data" }, { status: 400 });
   }
 
@@ -260,14 +282,23 @@ const TimeSeriesChart = ({
   const maxScore = Math.max(...data.map(d => d.totalScore), cutoff);
   
   // スケールを設定
-  const xScale = data.map((_, i) => i * ((width - padding.left - padding.right) / (data.length - 1)));
+  const xScale = (index: number) => {
+    if (data.length === 1) {
+      // データが1つの場合は中央に配置
+      return padding.left + (width - padding.left - padding.right) / 2;
+    } else {
+      // データが複数の場合は均等に分布
+      return padding.left + (index * (width - padding.left - padding.right) / Math.max(data.length - 1, 1));
+    }
+  };
+  
   const yScale = (score: number) => {
     return height - padding.bottom - ((score / (maxScore * 1.1)) * (height - padding.top - padding.bottom));
   };
   
   // データポイントを設定
   const points = data.map((d, i) => ({
-    x: padding.left + xScale[i],
+    x: xScale(i),
     y: yScale(d.totalScore),
     score: d.totalScore,
     date: d.date
@@ -424,7 +455,9 @@ export default function DoctorPatientPage() {
   const [timeSeriesData, setTimeSeriesData] = useState<{ [examId: number]: { date: string; totalScore: number }[] }>({});
   const [selectedExamSetId, setSelectedExamSetId] = useState<number | null>(null);
   
-  // FastAPIのURLを環境変数から取得(ブラウザからのアクセス用)
+  // FastAPIのURLをブラウザからアクセス用に設定
+  // console.log追加でデバッグ
+  console.log("FastAPIリクエストをローカルホスト8110に送信します");
   const FASTAPI_URL = "http://localhost:8110";
 
   // 検査IDごとに結果をグループ化する
@@ -478,16 +511,26 @@ export default function DoctorPatientPage() {
     const loadAnalysisResults = async () => {
       for (const result of results) {
         try {
-          const response = await axios.get(`${FASTAPI_URL}/api/analysis/result/${result.id}`);
+          console.log(`解析結果取得リクエスト: ${FASTAPI_URL}/api/analysis/result/${result.id}`);
+          const response = await axios.get(`${FASTAPI_URL}/api/analysis/result/${result.id}`, {
+            headers: {
+              'Content-Type': 'application/json',
+            }
+          });
           if (response.data) {
+            console.log(`解析結果取得成功: ${result.id}`, response.data);
             setAnalysisResults(prev => ({
               ...prev,
               [result.id]: response.data
             }));
           }
-        } catch (error) {
-          // 解析結果がない場合は無視
-          console.log(`Result ${result.id} has no analysis yet`);
+        } catch (error: any) {
+          // 解析結果がない場合や、エラーが発生した場合のログ処理を改善
+          if (axios.isAxiosError(error) && error.response?.status === 404) {
+            console.log(`Result ${result.id} has no analysis yet`);
+          } else {
+            console.error(`解析結果取得エラー(ID: ${result.id}):`, error.message);
+          }
         }
       }
     };
@@ -528,8 +571,18 @@ export default function DoctorPatientPage() {
       setAnalyzing(prev => ({ ...prev, [resultId]: true }));
       setAnalysisError(null);
       
+      // デバッグ情報を追加
+      console.log(`解析リクエスト送信: ${FASTAPI_URL}/api/analyze/${resultId}`);
+      
       // FastAPIサーバーに解析リクエストを送信
-      const response = await axios.post(`${FASTAPI_URL}/api/analyze/${resultId}`);
+      // カスタムヘッダーを追加してCORSエラーをデバッグ
+      const response = await axios.post(`${FASTAPI_URL}/api/analyze/${resultId}`, {}, {
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      console.log('解析レスポンス受信:', response.data);
       
       if (response.data) {
         // 解析結果を保存
@@ -538,9 +591,16 @@ export default function DoctorPatientPage() {
           [resultId]: response.data
         }));
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('解析エラー:', error);
-      setAnalysisError('解析処理中にエラーが発生しました。時間をおいて再度お試しください。');
+      if (axios.isAxiosError(error)) {
+        console.error('Axiosエラー詳細:', {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status
+        });
+      }
+      setAnalysisError(`解析処理中にエラーが発生しました: ${error.message}`);
     } finally {
       // 解析中フラグを解除
       setAnalyzing(prev => ({ ...prev, [resultId]: false }));
@@ -760,16 +820,47 @@ export default function DoctorPatientPage() {
                 <button
                   onClick={() => {
                     if (selectedExamSetId) {
-                      fetcher.submit(
-                        {
-                          patientId: patientId.toString(),
-                          examSetId: selectedExamSetId.toString(),
-                          actionType: "addFromExamSet"
-                        },
-                        { method: "POST" }
-                      );
-                      // 選択をリセット
-                      setSelectedExamSetId(null);
+                      // 選択した検査セットの内容を取得
+                      const selectedSet = examSets.find(set => set.id === selectedExamSetId);
+                      if (selectedSet) {
+                        // サーバーに送信
+                        fetcher.submit(
+                          {
+                            patientId: patientId.toString(),
+                            examSetId: selectedExamSetId.toString(),
+                            actionType: "addFromExamSet"
+                          },
+                          { method: "POST" }
+                        );
+                        
+                        // 既存の検査IDを抽出
+                        const existingExamIds = localStackedExams.map(exam => exam.examId);
+                        
+                        // クライアント側でも検査リストを更新（重複を避ける）
+                        selectedSet.examSetItems.forEach(item => {
+                          // 重複しない検査だけを追加
+                          if (!existingExamIds.includes(item.examId)) {
+                            // 追加する検査を予定リストに追加
+                            setLocalStackedExams(prev => [
+                              ...prev,
+                              {
+                                id: 0, // 一時的なID（サーバー側で実際のIDが生成される）
+                                patientId,
+                                examId: item.examId,
+                                exam: item.exam
+                              }
+                            ]);
+                            
+                            // 利用可能な検査リストから削除
+                            setLocalAvailableExams(prev =>
+                              prev.filter(exam => exam.id !== item.examId)
+                            );
+                          }
+                        });
+                        
+                        // 選択をリセット
+                        setSelectedExamSetId(null);
+                      }
                     } else {
                       alert("検査セットを選択してください");
                     }
