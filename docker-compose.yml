@@ -14,6 +14,7 @@ services:
   remix:
     container_name: remix-container
     build: ./docker/remix
+    command: ["sh", "-c", "chmod +x /usr/server/start.sh && /usr/server/start.sh"]
     # ポート公開を削除（Nginxを通じてアクセス）
     volumes:
       - ./docker/remix/app:/usr/server/app
@@ -24,6 +25,8 @@ services:
       - ./docker/remix/create-admin.sql:/usr/server/create-admin.sql
       - ./docker/remix/fix-users.sql:/usr/server/fix-users.sql
       - ./docker/remix/.env:/usr/server/.env
+      - ./docker/remix/start.sh:/usr/server/start.sh
+      - ./docker/remix/fix-admin.js:/usr/server/fix-admin.js
     stdin_open: true
     tty: true
     depends_on:

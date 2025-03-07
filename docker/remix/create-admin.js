@@ -8,15 +8,16 @@ async function createAdmin() {
   try {
     console.log('管理者アカウント作成処理を開始します...');
     
-    // 既存のadminユーザーを確認
-    const existingAdmin = await prisma.user.findFirst({
-      where: { 
-        username: {
-          equals: 'admin',
-          mode: 'insensitive'
-        }
-      }
-    });
+    // すべてのユーザー取得
+    console.log('全ユーザーリストを取得中...');
+    const allUsers = await prisma.user.findMany();
+    console.log(`全${allUsers.length}件のユーザーを取得しました`);
+    
+    // 管理者アカウントを探す
+    const existingAdmin = allUsers.find(user => 
+      user.username.toLowerCase() === 'admin' || 
+      user.role.toLowerCase() === 'admin'
+    );
     
     if (existingAdmin) {
       console.log('管理者アカウントは既に存在します。パスワードを更新します。');

@@ -144,3 +144,7 @@ docker/remix/exams/confidential/
 *.old
 *.orig
 *.tmp
+docker/remix/.DS_Store
+docker/.DS_Store
+.DS_Store
+docker/remix/.DS_Store

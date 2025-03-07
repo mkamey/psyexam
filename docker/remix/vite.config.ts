@@ -33,6 +33,7 @@ export default defineConfig({
       // マニフェスト解決の問題を修正するための設定
       manifest: true,
       serverModuleFormat: "esm",
+      ssr: true, // SSRを明示的に有効化
     }),
     tsconfigPaths(),
   ],
@@ -68,6 +69,7 @@ export default defineConfig({
     hmr: {
       protocol: 'ws',
       host: 'localhost',
+      clientPort: 8180, // ポートをNginxの外部ポートに合わせる
     },
   },
   
@@ -77,15 +79,23 @@ export default defineConfig({
     conditions: ["development", "browser"],
     alias: {
       // "remix:manifest"の解決問題を回避するためのダミーエイリアス
-      "remix:manifest": "/@id/__x00__virtual:remix/manifest",
+      "remix:manifest": "/@id/__virtual:remix/manifest",
     },
   },
   
-  // 仮想モジュールサポート
-  experimental: {
-    renderBuiltUrl(filename) {
-      return filename;
-    },
+  // その他の詳細設定
+  define: {
+    // vite固有の環境変数のポリフィル
+    'import.meta.hot': 'import.meta.hot',
+    'import.meta.env': 'import.meta.env',
+  },
+
+  // コンソール警告を非表示
+  esbuild: {
+    logOverride: {
+      'this-is-undefined-in-esm': 'silent',
+      'unsupported-dynamic-import': 'silent',
+    }
   },
 });
 
