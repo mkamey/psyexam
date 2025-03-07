@@ -4,11 +4,16 @@ import bcrypt from "bcryptjs";
 
 // セッションストレージの設定
 const sessionSecret = process.env.SESSION_SECRET || "default-secret-for-development";
+const isProduction = process.env.NODE_ENV === "production";
+
+// 環境別の設定をログ出力
+console.log(`[セッション設定] 環境: ${isProduction ? '本番' : '開発'}`); 
+console.log(`[セッション設定] Cookieドメイン: ${process.env.COOKIE_DOMAIN || '未設定'}`); 
 
 const sessionStorage = createCookieSessionStorage({
   cookie: {
     name: "psyexam_session",
-    secure: false, // 開発環境ではfalse
+    secure: process.env.NODE_ENV === "production", // 本番環境ではtrue
     secrets: [sessionSecret],
     sameSite: "lax",
     path: "/",

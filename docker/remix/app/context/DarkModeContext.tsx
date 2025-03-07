@@ -10,12 +10,35 @@ type DarkModeContextType = {
 // デフォルト値を持つコンテキストを作成
 const DarkModeContext = createContext<DarkModeContextType>({
   isDarkMode: false,
-  toggleDarkMode: () => {},
-  setDarkMode: () => {},
+  toggleDarkMode: () => console.log('Default toggleDarkMode called'),
+  setDarkMode: () => console.log('Default setDarkMode called'),
 });
 
+// コンテキストが存在するかどうかをチェックする関数
+export function assertDarkModeContext() {
+  const context = useContext(DarkModeContext);
+  if (context === undefined) {
+    throw new Error('useDarkMode must be used within a DarkModeProvider');
+  }
+  return context;
+}
+
 // コンテキストを使用するためのカスタムフック
-export const useDarkMode = () => useContext(DarkModeContext);
+export const useDarkMode = () => {
+  try {
+    const context = useContext(DarkModeContext);
+    console.log('DarkModeContext accessed:', context ? 'available' : 'null');
+    return context;
+  } catch (error) {
+    console.error('Error in useDarkMode hook:', error);
+    // エラーが発生した場合はデフォルトのコンテキスト値を返す
+    return {
+      isDarkMode: false,
+      toggleDarkMode: () => console.log('Fallback toggleDarkMode called'),
+      setDarkMode: () => console.log('Fallback setDarkMode called')
+    };
+  }
+};
 
 // サーバーサイドレンダリングかどうかを判定するヘルパー関数
 const isServer = typeof window === 'undefined';
@@ -24,10 +47,10 @@ const isServer = typeof window === 'undefined';
 export function DarkModeProvider({ children }: { children: React.ReactNode }) {
   console.log(`DarkModeProvider レンダリング - サーバーサイド？ ${isServer ? 'はい' : 'いいえ'}`);
   
-  // クライアントサイドのみで実行されるようにする - 初期値をnullではなくfalseに設定
+  // クライアントサイドのみで実行されるようにする - 初期値をfalseに設定
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   // ローカルストレージからのロードが完了したかどうかを追跡
-  const [isLoaded, setIsLoaded] = useState<boolean>(false);
+  const [isLoaded, setIsLoaded] = useState<boolean>(isServer ? true : false); // サーバーサイドでは常にロード完了とする
 
   // マウント時にローカルストレージとシステム設定を確認
   useEffect(() => {

@@ -1,80 +1,146 @@
-# 依存関係ディレクトリ
+# 全般的なシステムファイル
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+
+# 環境変数・機密情報
+.env
+.env.*
+!.env.example
+
+# Node.js (Remix)
 **/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
 **/.cache/
 **/build/
-/public/build
-/.cache
+**/dist/
+**/public/build/
+**/coverage/
+**/.nyc_output/
+.npmrc
+yarn.lock
+package-lock.json
+**/.turbo
 
-# Python環境
+# Remix固有
+/app/styles/**/*.css
+.cache/
+.remix/
+build/
+
+# Python (FastAPI)
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
-venv/
-.venv/
+.Python
 .pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+.pytest_cache/
+pipenv-lock/
+pyrightconfig.json
 .python-version
+.venv/
+venv/
+ENV/
+env/
+*.egg-info/
+.installed.cfg
+*.egg
 
-# ローカル設定ファイル
-.env
-.env.*
-!.env.example
-.env.local
-.env.*.local
-.env.production
-.env.development.local
-.env.test.local
-.env.production.local
+# データベース
+docker/db/data/
+*.db
+dev.db
+*.db-journal
+*.sqlite
+*.sqlite3
+*.sql.gz
+*.dump
+docker/remix/prisma/migrations/
 
-# システムファイル
-.DS_Store
-Thumbs.db
-
-# ログファイル
-*.log
-logs/
-npm-debug.log*
-
-# デバッグファイル
-*.pid
-*.seed
+# Docker
+docker-compose.override.yml
+*.env
 
 # エディタ/IDE
-.vscode/
 .idea/
+.vscode/
+.vs/
 *.sublime-*
+*.code-workspace
+.history/
+.project
+.classpath
+.settings/
+*.tmproj
+*.esproj
+.netbeans/
+nbproject/
+
+# ログ
+logs/
+*.log
+npm-debug.log*
 
 # テスト関連
 coverage/
 .nyc_output/
-
-# Docker関連
-docker/db/data/
-
-# データベース関連
-docker/remix/prisma/migrations/
-*.db
-dev.db
-*.db-journal
+.coverage
+htmlcov/
+test-results/
 
 # ビルド成果物
 dist/
 out/
+build/
 *.tsbuildinfo
 .vercel
 .netlify
 
-# パッケージ管理
-*.tgz
-yarn-debug.log*
-yarn-error.log*
-package-lock.json
-yarn.lock
-
+# 特定のアプリケーションデータ
 # 著作権保護された試験データ
 docker/remix/exams/EDI-3.json
+docker/remix/exams/private/
+docker/remix/exams/confidential/
 
-# その他
-*.swp
-*.swo
-.DS_Store
+# 認証情報
+*.pem
+*.key
+*.cert
+*.crt
+*.ca-bundle
+.cloudflared/
+*.pfx
+*.p12
+
+# ローカル設定
+.localrc
+.profile.local
+.bashrc.local
+.zshrc.local
+
+# 特定のデプロイメント関連ファイル
+.cloudflare/
+.fly/
+.render/
+.deploy/
+.railway/
+
+# バックアップファイル
+*.bak
+*.backup
+*~
+*.old
+*.orig
+*.tmp

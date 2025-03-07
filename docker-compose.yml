@@ -3,7 +3,7 @@ services:
     image: nginx:alpine
     container_name: nginx-container
     ports:
-      - "80:80"
+      - "8180:80"
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d
     depends_on:
@@ -23,18 +23,12 @@ services:
       - ./docker/remix/utils:/usr/server/utils
       - ./docker/remix/create-admin.sql:/usr/server/create-admin.sql
       - ./docker/remix/fix-users.sql:/usr/server/fix-users.sql
+      - ./docker/remix/.env:/usr/server/.env
     stdin_open: true
     tty: true
     depends_on:
       db:
         condition: service_healthy
-    environment:
-      - DATABASE_URL=mysql://root:p0ssw0rd@db:3306/psyexam
-      - SESSION_SECRET=your-super-secret-key-here
-      - NODE_ENV=development
-      - DEBUG=express:*
-      - REMIX_DEV_SERVER_WS_PORT=3010
-      - FASTAPI_URL=/api  # 相対パスに変更
     restart: unless-stopped
   
   fastapi:
@@ -43,11 +37,10 @@ services:
     # ポート公開を削除（Nginxを通じてアクセス）
     volumes:
       - ./fastapi/app:/app/app
+      - ./fastapi/.env:/app/.env
     depends_on:
       db:
         condition: service_healthy
-    environment:
-      - DATABASE_URL=mysql+pymysql://root:p0ssw0rd@db:3306/psyexam
     restart: unless-stopped
 
   db:

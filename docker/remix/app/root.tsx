@@ -80,18 +80,33 @@ function Header() {
 }
 
 function AppLayout({ children }: { children: React.ReactNode }) {
-  const { isDarkMode } = useDarkMode();
+  // 安全なコンテキストアクセスのためのエラーハンドリング
+  try {
+    const { isDarkMode } = useDarkMode();
 
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', isDarkMode);
-  }, [isDarkMode]);
+    useEffect(() => {
+      if (typeof document !== 'undefined') {
+        console.log('AppLayout: Setting dark mode class to', isDarkMode);
+        document.documentElement.classList.toggle('dark', isDarkMode);
+      }
+    }, [isDarkMode]);
 
-  return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <Header />
-      {children}
-    </div>
-  );
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <Header />
+        {children}
+      </div>
+    );
+  } catch (error) {
+    console.error('Error in AppLayout:', error);
+    // エラー発生時は基本レイアウトを返す
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        {children}
+      </div>
+    );
+  }
 }
 
 export default function App() {
@@ -104,9 +119,11 @@ export default function App() {
         <Links />
       </head>
       <body className="h-full">
-        <AppLayout>
-          <Outlet />
-        </AppLayout>
+        <DarkModeProvider>
+          <AppLayout>
+            <Outlet />
+          </AppLayout>
+        </DarkModeProvider>
         <ScrollRestoration />
         <Scripts />
         {/* ダークモード初期化のデバッグ出力 */}
