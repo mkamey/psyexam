@@ -119,14 +119,45 @@ export default function App() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <Meta />
         <Links />
+        <script src="/js/error-handler.js"></script>
+        <script src="/js/polyfill.js"></script>
       </head>
       <body className="h-full">
+        {/* グローバルメディアデバイスポリフィル */}
+        <script dangerouslySetInnerHTML={{ __html: `
+          // メディアデバイスAPI用のポリフィル
+          if (typeof navigator !== 'undefined' && !navigator.mediaDevices) {
+            navigator.mediaDevices = {};
+          }
+          if (typeof navigator !== 'undefined' && navigator.mediaDevices && !navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia = function() {
+              console.log("getUserMedia インラインpolyfill適用済み");
+              return Promise.reject(new Error("getUserMedia is not supported"));
+            };
+          }
+          console.log("インラインpolyfillロード完了");
+        ` }} />
         <DarkModeProvider>
           <AppLayout>
             <Outlet />
           </AppLayout>
         </DarkModeProvider>
         <ScrollRestoration />
+        // root.tsxの<Scripts />の前に追加
+{/* getUserMediaのPolyfill */}
+<script dangerouslySetInnerHTML={{ __html: `
+  // メディアデバイスへのアクセス関数のpolyfill
+  if (typeof navigator !== 'undefined' && !navigator.mediaDevices) {
+    navigator.mediaDevices = {};
+  }
+  if (typeof navigator !== 'undefined' && navigator.mediaDevices && !navigator.mediaDevices.getUserMedia) {
+    navigator.mediaDevices.getUserMedia = function() {
+      console.warn("getUserMedia is not supported in this browser, using polyfill");
+      return Promise.reject(new Error("getUserMedia is not supported"));
+    };
+  }
+` }} />
+<Scripts />
         <Scripts />
         {/* ダークモード初期化のデバッグ出力 */}
         <script dangerouslySetInnerHTML={{ __html: `console.log("Remixアプリがロードされました");` }} />

@@ -57,12 +57,12 @@ async function createAdmin() {
     }
     
     // 確認のため全ユーザーリストを表示
-    const allUsers = await prisma.user.findMany({
+    const updatedUsers = await prisma.user.findMany({
       select: { id: true, username: true, role: true, isApproved: true }
     });
     
     console.log('現在のユーザー一覧:');
-    console.table(allUsers);
+    console.table(updatedUsers);
     
   } catch (error) {
     console.error('エラーが発生しました:', error);

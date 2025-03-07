@@ -149,26 +149,20 @@ export async function login({ username, password }: { username: string, password
       console.log(`[login] 警告: 管理者アカウントが存在しません。自動作成が必要です。`);
     }
     
-    // 大文字小文字を無視して検索するように修正
+    // 全ユーザーを取得して手動で大文字小文字を区別せずに比較
     console.log(`[login] ユーザー検索クエリ実行...`);
     
-    // まず完全一致で検索
-    const user = await prisma.user.findFirst({
-      where: { 
-        username: {
-          equals: username,
-          mode: 'insensitive' // 大文字小文字を無視
-        }
-      },
-    });
+    const allUsers = await prisma.user.findMany();
+    
+    // 大文字小文字を区別せずに検索
+    const user = allUsers.find(u => 
+      u.username.toLowerCase() === username.toLowerCase()
+    );
 
     if (!user) {
       console.log(`[login] ユーザーが見つかりません: ${username}`);
       
       // 全ユーザーリストを取得して確認（デバッグ用）
-      const allUsers = await prisma.user.findMany({
-        select: { id: true, username: true, role: true, password: true }
-      });
       console.log(`[login] 現在のユーザー一覧:`);
       allUsers.forEach(u => {
         console.log(`ID: ${u.id}, Username: ${u.username}, Role: ${u.role}`);

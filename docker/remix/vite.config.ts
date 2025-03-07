@@ -66,11 +66,7 @@ export default defineConfig({
   server: {
     host: true,
     port: 3000,
-    hmr: {
-      protocol: 'ws',
-      host: 'localhost',
-      clientPort: 8180, // ポートをNginxの外部ポートに合わせる
-    },
+    hmr: false,  // HMRを無効化
   },
   
   // 解決設定
