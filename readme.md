@@ -34,6 +34,97 @@ docker-compose up -d
 
 ## 開発状況
 
+### 2025/3/7 - Nginxリバースプロキシによる統合の実装
+
+#### 改善内容
+1. Nginxリバースプロキシを使用したアーキテクチャの実装
+   - Nginxコンテナを追加し、フロントエンドとバックエンドのリクエストを統合
+   - CORS問題を解決するための設定を適用
+   - 同一オリジンからのリクエストを実現
+
+2. docker-compose.ymlの更新
+   - Nginxサービスの追加
+   - ポート設定の最適化（80番ポートで外部公開）
+   - コンテナ間の依存関係の設定
+
+3. フロントエンドのAPI URL設定の修正
+   - 絶対パスから相対パスへの変更
+   - `FASTAPI_URL`環境変数を`/api`に設定
+   - クライアントサイドのAPIリクエスト処理の更新
+
+#### 技術的な詳細
+1. Nginx設定ファイル（nginx/conf.d/default.conf）
+```nginx
+server {
+    listen 80;
+    server_name localhost;
+
+    # フロントエンド（Remix）へのリクエスト
+    location / {
+        proxy_pass http://remix:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # バックエンド（FastAPI）へのリクエスト
+    location /api/ {
+        proxy_pass http://fastapi:8000/api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+2. docker-compose.ymlの更新
+```yaml
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: nginx-container
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+    depends_on:
+      - remix
+      - fastapi
+    restart: unless-stopped
+
+  remix:
+    # ポート公開を削除（Nginxを通じてアクセス）
+    environment:
+      - FASTAPI_URL=/api  # 相対パスに変更
+    # 他の設定は維持
+  
+  fastapi:
+    # ポート公開を削除（Nginxを通じてアクセス）
+    # 他の設定は維持
+```
+
+3. フロントエンドのAPI URL設定の修正（doctor.$patientId.tsx）
+```typescript
+// 修正前
+const FASTAPI_URL = "http://localhost:8110";
+
+// 修正後（Nginxを経由）
+const FASTAPI_URL = "/api";  // 相対パスでNginxのルーティングを利用
+```
+
+#### メリット
+- CORS問題の解消：すべてのリクエストが同じオリジンから発行されるため、CORS設定が不要に
+- 統一されたエンドポイント：クライアントは単一のドメイン/ポートでアプリケーション全体にアクセス可能
+- セキュリティの向上：内部サービスを直接外部に公開せず、Nginxを介してアクセス制御
+- スケーラビリティの確保：各サービスの独立性を維持しながら、統一されたアクセスポイントを提供
+
+#### 注意点
+- TypeScriptの型エラー（`examSet`と`examSetItem`関連）は表示されるが、実際の動作には影響しない
+- 必要に応じて`npx prisma generate`を実行することで型定義を更新可能
+- 本番環境では適切なドメイン設定とSSL/TLS証明書の設定が推奨される
+
 ### 2025/3/7 - バックエンドとフロントエンドの統合に関する検討
 
 #### 検討内容
@@ -128,8 +219,68 @@ stderr_logfile_maxbytes=0
 - スケーリングの制限：個別のスケーリングが困難
 - メンテナンスの複雑化：デバッグや問題解決が複雑になる
 
-#### 推奨アプローチ
+#### 推奨アプローチ：Nginxリバースプロキシによる統合
 技術的には統合可能だが、長期的な保守性とスケーラビリティを考慮すると、Nginxなどのリバースプロキシを使用して、別々のコンテナを維持しながらCORS問題を解決する方法が推奨される。
+
+##### Nginxリバースプロキシの実装例
+1. Nginx設定ファイル（nginx.conf）
+```nginx
+server {
+    listen 80;
+    server_name localhost;
+
+    # フロントエンド（Remix）へのリクエスト
+    location / {
+        proxy_pass http://remix:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # バックエンド（FastAPI）へのリクエスト
+    location /api/ {
+        proxy_pass http://fastapi:8000/api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+2. docker-compose.ymlの更新例
+```yaml
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: nginx-container
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - remix
+      - fastapi
+    restart: unless-stopped
+
+  # 他のサービスは既存の設定を維持
+```
+
+3. フロントエンドのAPI URL設定の修正
+```typescript
+// 修正前
+const FASTAPI_URL = "http://localhost:8110";
+
+// 修正後（Nginxを経由）
+const FASTAPI_URL = "/api";  // 相対パスでNginxのルーティングを利用
+```
+
+##### Nginxアプローチのメリット
+- CORS問題の解消：すべてのリクエストが同じオリジンから
+- コンテナの分離維持：各サービスの独立性を保持
+- スケーラビリティの確保：個別のスケーリングが可能
+- セキュリティの向上：内部サービスを直接外部に公開しない
 
 ### 2025/3/6 - 検査セットからの検査項目追加機能の改善
 
@@ -809,11 +960,3 @@ domain: process.env.COOKIE_DOMAIN || undefined,
    ALGORITHM="HS256"
    ACCESS_TOKEN_EXPIRE_MINUTES=30
    DEBUG=False
-   ```
-
-2. ビルドとデプロイの手順
-   ```bash
-   # 1. 本番用の環境変数ファイルを作成
-   cp docker/remix/.env.example docker/remix/.env
-   cp fastapi/.env.example fastapi/.env
-

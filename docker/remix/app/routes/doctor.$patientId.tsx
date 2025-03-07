@@ -455,10 +455,10 @@ export default function DoctorPatientPage() {
   const [timeSeriesData, setTimeSeriesData] = useState<{ [examId: number]: { date: string; totalScore: number }[] }>({});
   const [selectedExamSetId, setSelectedExamSetId] = useState<number | null>(null);
   
-  // FastAPIのURLをブラウザからアクセス用に設定
+  // FastAPIのURLを相対パスで設定（Nginxリバースプロキシ経由）
   // console.log追加でデバッグ
-  console.log("FastAPIリクエストをローカルホスト8110に送信します");
-  const FASTAPI_URL = "http://localhost:8110";
+  console.log("FastAPIリクエストを相対パス /api に送信します");
+  const FASTAPI_URL = "/api";
 
   // 検査IDごとに結果をグループ化する
   useEffect(() => {
