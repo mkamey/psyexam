@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import {
   Links,
   Meta,
@@ -8,9 +9,8 @@ import {
   Link
 } from "@remix-run/react";
 import type { LinksFunction } from "@remix-run/node";
-import { useEffect } from "react";
 import { DarkModeToggle } from "./components/DarkModeToggle";
-import { useDarkMode } from "./context/DarkModeContext";
+import { useDarkMode, DarkModeProvider } from "./context/DarkModeContext";
 
 import "./tailwind.css";
 
@@ -104,12 +104,9 @@ export default function App() {
         <Links />
       </head>
       <body className="h-full">
-        {/* Outlet をClientOnlyでラップしないようにする */}
-        <DarkModeProvider>
-          <AppLayout>
-            <Outlet />
-          </AppLayout>
-        </DarkModeProvider>
+        <AppLayout>
+          <Outlet />
+        </AppLayout>
         <ScrollRestoration />
         <Scripts />
         {/* ダークモード初期化のデバッグ出力 */}
@@ -118,9 +115,3 @@ export default function App() {
     </html>
   );
 }
-
-// DarkModeProviderのインポートを追加
-import { DarkModeProvider } from "./context/DarkModeContext";
-
-// ClientOnlyコンポーネントで使用するuseStateをimport
-import { useState } from "react";
